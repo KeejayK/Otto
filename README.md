@@ -33,7 +33,7 @@
 - **Auth** Auth0
 
 ## Repository Layout
-- frontend: React based UI
-- backend: Python flask or django server for APIs
-- db: Postresql
-- docs: api documentation, feature plans
+- `frontend/`: React based UI
+- `backend/`: Python flask or django server for APIs
+- `db/`: Postresql
+- `docs/`: api documentation, feature plans
