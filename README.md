@@ -7,14 +7,12 @@
 **otto** is a web application designed to help UW students connect with peers in similar classes and with matching availability, making it easier to form study groups, collaborate on coursework, and foster meaningful academic relationships.
 
  ### We aim to:
-- **Create a positive learning environment** by encouraging student collaboration.
-- **Break social barriers** by connecting students based on shared class schedules and interests.
-- **Support mental wellness** by reducing academic stress through study support networks.
+- **Simplify academic scheduling** by creating a streamlined solution that understands how students actually work.
+- **Redefine** how students manage their academic schedules with a conversational interface purpose-built for college life.
 
 ### We'll achieve these goals by:
-- Providing a distraction free, lightweight, and clean user interface
-- Matching students by enrolled courses, schedule availability, and academic interests
-- Building an interactive heatmap to show overlapping availability between users
+- Utilizing natural language processing to simplify calendar management
+- Automate the extraction of critical dates from course materials
   
 
 ## 🎯 Planned Features
