@@ -25,15 +25,19 @@
 - Interactive availability heatmap
 - User profiles with bio descriptions
 
+## 🎯 Planned Features
+
+- Class & schedule input
+- Interest-based tagging (e.g., coding languages, academic topics)
+- Study group suggestions
+- Interactive availability heatmap
+- User profiles with bio descriptions
+
 ## 🛠️ Tech Stack
 
-- **Frontend**: React, Bootstrap, D3 (for heatmap)
-- **Backend**: Python (Flask or Django)
-- **Database**: PostgreSQL
-- **Auth** Auth0
+- **Frontend**: Vue.js + Tailwind CSS
+- **Backend**: Node.js + Express
+- **Database**: Firebase Firestore
+- **NLP**: OpenAI GPT4 API, Langchain, 
+- **Calendar Integration** Google Calendar API, OAuth 2.0
 
-## Repository Layout
-- `frontend/`: React based UI
-- `backend/`: Python flask or django server for APIs
-- `db/`: Postresql
-- `docs/`: api documentation, feature plans
