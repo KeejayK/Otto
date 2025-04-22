@@ -1,10 +1,10 @@
-# Study Dawgs
+# Otto
 
 **Keejay, Judy, Jiahao, Aaron, Braden**
 
 ## 📘 Overview
 
-**Study Dawgs** is a web application designed to help UW students connect with peers in similar classes and with matching availability, making it easier to form study groups, collaborate on coursework, and foster meaningful academic relationships.
+**Otto** is a web application designed to help UW students connect with peers in similar classes and with matching availability, making it easier to form study groups, collaborate on coursework, and foster meaningful academic relationships.
 
  ### We aim to:
 - **Create a positive learning environment** by encouraging student collaboration.
