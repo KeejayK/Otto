@@ -1,0 +1,27 @@
+{
+  "name": "otto",
+  "version": "1.0.0",
+  "description": "Otto - A Conversational Calendar for Students",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "client": "cd client && npm run dev",
+    "server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KeejayK/otto.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KeejayK/otto/issues"
+  },
+  "homepage": "https://github.com/KeejayK/otto#readme",
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
