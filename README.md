@@ -4,7 +4,7 @@
 
 ## 📘 Overview
 
-**otto** is a web application designed to help UW students connect with peers in similar classes and with matching availability, making it easier to form study groups, collaborate on coursework, and foster meaningful academic relationships.
+Otto is an intelligent calendar assistant built for students. Speak naturally to manage your schedule, snap photos class timetables and copy-paste your syllabi to instantly capture deadlines, exam dates, and office hour times to seamlessly sync everything to your Google Calendar.
 
  ### We aim to:
 - **Simplify academic scheduling** by creating a streamlined solution that understands how students actually work.
@@ -26,9 +26,18 @@
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Vue.js + Tailwind CSS
+- **Frontend**: Vue.js + CSS
 - **Backend**: Node.js + Express
 - **Database**: Firebase Firestore
 - **NLP**: OpenAI GPT4 API, Langchain, 
 - **Calendar Integration** Google Calendar API, OAuth 2.0
+
+
+### Prerequisites
+
+- Node.js (v16 or later)  
+- npm (v7 or later)  
+- Google Cloud account for OAuth credentials  
+- Firebase project  
+- OpenAI API key  
 
