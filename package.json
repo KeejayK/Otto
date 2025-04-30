@@ -23,5 +23,8 @@
   "homepage": "https://github.com/KeejayK/otto#readme",
   "dependencies": {
     "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "path": "^0.12.7"
   }
 }
