@@ -167,12 +167,12 @@
       } else if (message.toLowerCase().includes('change')) {
         response = "Which event would you like to change?";
       } else {
-        response = "I'm Otto, your calendar assistant. I can help you manage your schedule. Try asking me to add an event, check your schedule, or upload a syllabus.";
+        response = "I'm Otto, your calendar assistant. I can help you manage your schedule. Try asking me to add an event, check your schedule, or upload your class schedule.";
       }
       
       chatMessages.value.push({
         role: 'assistant',
-        content: response
+        content: response // Simulated response
       });
       
       scrollToBottom();

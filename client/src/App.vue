@@ -7,13 +7,6 @@
       <div v-if="isLoggedIn" class="user-profile">
         <span class="user-name">{{ userName }}</span>
         <img :src="userPhoto || '@/assets/default-avatar.svg'" alt="Profile" class="avatar" />
-        <button @click="logout" class="logout-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-        </button>
       </div>
     </header>
     
@@ -71,13 +64,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 0.3rem 2rem;
   background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .logo img {
-  height: 3rem;
+  height: 8rem;
 }
 
 .user-profile {

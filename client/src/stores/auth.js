@@ -91,7 +91,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Get ID token for API calls
   const getIdToken = async () => {
-    // In a real app, this would return the Firebase ID token
+    //  NEED TO CHANGE: Return the Firebase ID token
     return 'demo-token-123456'
   }
 
