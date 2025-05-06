@@ -26,25 +26,25 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install frontend dependencies
-        working-directory: ./frontend
+        working-directory: ./client
         run: npm ci
 
       - name: Run frontend lint
-        working-directory: ./frontend
+        working-directory: ./client
         run: npm run lint
 
       - name: Run frontend tests
-        working-directory: ./frontend
+        working-directory: ./client
         run: npm run test
 
       - name: Install backend dependencies
-        working-directory: ./backend
+        working-directory: ./server
         run: npm ci
 
       - name: Run backend lint
-        working-directory: ./backend
+        working-directory: ./server
         run: npm run lint
 
       - name: Run backend tests
-        working-directory: ./backend
+        working-directory: ./server
         run: npm test
