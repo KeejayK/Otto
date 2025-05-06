@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "otto-458919",
+    "staging": "otto-458919"
+  }
+}

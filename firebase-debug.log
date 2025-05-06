@@ -1,0 +1,85 @@
+[debug] [2025-05-06T08:36:37.479Z] ----------------------------------------------------------------------
+[debug] [2025-05-06T08:36:37.481Z] Command:       /usr/bin/node /usr/bin/firebase deploy --only functions --project otto-458919 --debug
+[debug] [2025-05-06T08:36:37.481Z] CLI Version:   14.2.2
+[debug] [2025-05-06T08:36:37.481Z] Platform:      linux
+[debug] [2025-05-06T08:36:37.481Z] Node Version:  v20.19.0
+[debug] [2025-05-06T08:36:37.481Z] Time:          Tue May 06 2025 01:36:37 GMT-0700 (Pacific Daylight Time)
+[debug] [2025-05-06T08:36:37.481Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-05-06T08:36:37.639Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-05-06T08:36:37.640Z] > authorizing via signed-in user (keejayk@gmail.com)
+[debug] [2025-05-06T08:36:37.640Z] [iam] checking project otto-458919 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-05-06T08:36:37.641Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:37.641Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:37.642Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919:testIamPermissions [none]
+[debug] [2025-05-06T08:36:37.642Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919:testIamPermissions x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:37.643Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-05-06T08:36:37.865Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919:testIamPermissions 200
+[debug] [2025-05-06T08:36:37.866Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-05-06T08:36:37.867Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:37.867Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:37.867Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/otto-458919/serviceAccounts/otto-458919@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-05-06T08:36:37.868Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/otto-458919/serviceAccounts/otto-458919@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-05-06T08:36:38.055Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/otto-458919/serviceAccounts/otto-458919@appspot.gserviceaccount.com:testIamPermissions 404
+[debug] [2025-05-06T08:36:38.055Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/otto-458919/serviceAccounts/otto-458919@appspot.gserviceaccount.com:testIamPermissions {"error":{"code":404,"message":"Unknown service account","status":"NOT_FOUND"}}
+[debug] [2025-05-06T08:36:38.057Z] [functions] service account IAM check errored, deploy may fail: Request to https://iam.googleapis.com/v1/projects/otto-458919/serviceAccounts/otto-458919@appspot.gserviceaccount.com:testIamPermissions had HTTP Error: 404, Unknown service account {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":404,"message":"Unknown service account","status":"NOT_FOUND"}},"response":{"statusCode":404}},"exit":1,"message":"Request to https://iam.googleapis.com/v1/projects/otto-458919/serviceAccounts/otto-458919@appspot.gserviceaccount.com:testIamPermissions had HTTP Error: 404, Unknown service account","status":404}
+[info] 
+[info] === Deploying to 'otto-458919'...
+[info] 
+[info] i  deploying functions 
+[debug] [2025-05-06T08:36:38.060Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.060Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.060Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919 [none]
+[debug] [2025-05-06T08:36:38.165Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919 200
+[debug] [2025-05-06T08:36:38.166Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/otto-458919 {"projectNumber":"857985750780","projectId":"otto-458919","lifecycleState":"ACTIVE","name":"otto","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-05-05T19:10:43.384803Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[debug] [2025-05-06T08:36:38.167Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.167Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.167Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.167Z] Checked if tokens are valid: true, expires at: 1746521834685
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[debug] [2025-05-06T08:36:38.168Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.168Z] Checked if tokens are valid: true, expires at: 1746521834685
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2025-05-06T08:36:38.168Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.168Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.168Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudfunctions.googleapis.com [none]
+[debug] [2025-05-06T08:36:38.168Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudfunctions.googleapis.com x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:38.169Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/runtimeconfig.googleapis.com [none]
+[debug] [2025-05-06T08:36:38.169Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/runtimeconfig.googleapis.com x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:38.170Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com [none]
+[debug] [2025-05-06T08:36:38.170Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:38.172Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com [none]
+[debug] [2025-05-06T08:36:38.172Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:38.797Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/runtimeconfig.googleapis.com 200
+[debug] [2025-05-06T08:36:38.797Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/runtimeconfig.googleapis.com [omitted]
+[debug] [2025-05-06T08:36:38.797Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudfunctions.googleapis.com 200
+[debug] [2025-05-06T08:36:38.797Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudfunctions.googleapis.com [omitted]
+[warn] ⚠  functions: missing required API cloudfunctions.googleapis.com. Enabling now... 
+[debug] [2025-05-06T08:36:38.798Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.798Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.798Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudfunctions.googleapis.com:enable [none]
+[debug] [2025-05-06T08:36:38.798Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudfunctions.googleapis.com:enable x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:38.800Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com 200
+[debug] [2025-05-06T08:36:38.800Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com [omitted]
+[warn] ⚠  artifactregistry: missing required API artifactregistry.googleapis.com. Enabling now... 
+[debug] [2025-05-06T08:36:38.800Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.800Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.800Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com:enable [none]
+[debug] [2025-05-06T08:36:38.800Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com:enable x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:38.901Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com 200
+[debug] [2025-05-06T08:36:38.901Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com [omitted]
+[warn] ⚠  functions: missing required API cloudbuild.googleapis.com. Enabling now... 
+[debug] [2025-05-06T08:36:38.902Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.902Z] Checked if tokens are valid: true, expires at: 1746521834685
+[debug] [2025-05-06T08:36:38.902Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com:enable [none]
+[debug] [2025-05-06T08:36:38.902Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com:enable x-goog-quota-user=projects/otto-458919
+[debug] [2025-05-06T08:36:39.096Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com:enable 400
+[debug] [2025-05-06T08:36:39.096Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/cloudbuild.googleapis.com:enable [omitted]
+[error] 
+[error] Error: Your project otto-458919 must be on the Blaze (pay-as-you-go) plan to complete this command. Required API cloudbuild.googleapis.com can't be enabled until the upgrade is complete. To upgrade, visit the following URL:
+
+https://console.firebase.google.com/project/otto-458919/usage/details
+[debug] [2025-05-06T08:36:39.196Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com:enable 400
+[debug] [2025-05-06T08:36:39.196Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/otto-458919/services/artifactregistry.googleapis.com:enable [omitted]
