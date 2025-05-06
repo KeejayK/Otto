@@ -1,10 +1,10 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [dev]
+    branches: [main, dev]
+  push:
+    branches: [pipeline-setup]
 
 jobs:
   build-and-deploy:
@@ -36,9 +36,3 @@ jobs:
 
     - name: Build frontend
       run: npm run build
-
-    - name: Deploy to Firebase (main only)
-      if: github.ref == 'refs/heads/main'
-      run: firebase deploy --project staging --only hosting,functions
-      env:
-        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
