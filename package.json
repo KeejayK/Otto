@@ -12,6 +12,7 @@
     "start": "cd server && npm start",
     "lint": "eslint client server --ext .js,.vue",
     "format": "prettier --check \"**/*.{js,vue,json,md}\"",
+    "format:fix": "prettier --write \"**/*.{js,vue,json,md}\"",
     "test": "cd server && npm test"
   },
   "repository": {
@@ -25,7 +26,9 @@
   },
   "homepage": "https://github.com/KeejayK/otto#readme",
   "dependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "pinia": "^3.0.2",
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
