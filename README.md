@@ -41,3 +41,5 @@ Otto is an intelligent calendar assistant built for students. Speak naturally to
 - Firebase project  
 - OpenAI API key  
 
+### How to implement Jest test
+https://jestjs.io/docs/getting-started
