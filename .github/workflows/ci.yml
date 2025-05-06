@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name: CI/CD Pipeline
 
 on:
@@ -36,3 +37,55 @@ jobs:
 
     - name: Build frontend
       run: npm run build
+=======
+# .github/workflows/ci.yml
+
+name: Otto_CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install frontend dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Run frontend tests
+        working-directory: ./client
+        run: npm run test
+
+      - name: Install backend dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Run backend lint
+        working-directory: ./server
+        run: npm run lint
+
+      - name: Run backend tests
+        working-directory: ./server
+        run: npm test
+>>>>>>> ba4132479e5c14d7c9bf08da4ede80a93cd3b345
