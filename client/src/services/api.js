@@ -2,7 +2,7 @@
 // For this frontend demo, we'll simulate API responses
 
 // Simulate API delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Mock calendar events
 const mockEvents = [
@@ -12,13 +12,13 @@ const mockEvents = [
     description: 'Operating Systems lecture',
     start: {
       dateTime: '2025-04-29T10:30:00',
-      timeZone: 'America/Los_Angeles'
+      timeZone: 'America/Los_Angeles',
     },
     end: {
       dateTime: '2025-04-29T11:20:00',
-      timeZone: 'America/Los_Angeles'
+      timeZone: 'America/Los_Angeles',
     },
-    location: 'CSE Building 105'
+    location: 'CSE Building 105',
   },
   {
     id: '2',
@@ -26,13 +26,13 @@ const mockEvents = [
     description: 'Weekly team meeting to discuss progress',
     start: {
       dateTime: '2025-04-30T14:00:00',
-      timeZone: 'America/Los_Angeles'
+      timeZone: 'America/Los_Angeles',
     },
     end: {
       dateTime: '2025-04-30T16:00:00',
-      timeZone: 'America/Los_Angeles'
+      timeZone: 'America/Los_Angeles',
     },
-    location: 'Library Study Room 3'
+    location: 'Library Study Room 3',
   },
   {
     id: '3',
@@ -40,46 +40,46 @@ const mockEvents = [
     description: 'Submit final project',
     start: {
       dateTime: '2025-05-02T23:59:00',
-      timeZone: 'America/Los_Angeles'
+      timeZone: 'America/Los_Angeles',
     },
     end: {
       dateTime: '2025-05-02T23:59:00',
-      timeZone: 'America/Los_Angeles'
+      timeZone: 'America/Los_Angeles',
     },
-    location: ''
-  }
-]
+    location: '',
+  },
+];
 
 // Calendar API calls
 export const calendarApi = {
   // Get events
   getEvents: async () => {
-    await delay(500)
-    return { data: mockEvents }
+    await delay(500);
+    return { data: mockEvents };
   },
-  
+
   // Create event
   createEvent: async (event) => {
-    await delay(500)
+    await delay(500);
     const newEvent = {
       id: Math.random().toString(36).substring(2, 9),
-      ...event
-    }
-    return { data: newEvent }
+      ...event,
+    };
+    return { data: newEvent };
   },
-  
+
   // Update event
   updateEvent: async (eventId, event) => {
-    await delay(500)
-    return { data: { id: eventId, ...event } }
+    await delay(500);
+    return { data: { id: eventId, ...event } };
   },
-  
+
   // Delete event
   deleteEvent: async (eventId) => {
-    await delay(500)
-    return { data: { success: true } }
-  }
-}
+    await delay(500);
+    return { data: { success: true } };
+  },
+};
 
 // Mock chat history
 const mockChatHistory = [
@@ -87,47 +87,60 @@ const mockChatHistory = [
     id: '1',
     message: 'Hello! How can I help you today?',
     role: 'assistant',
-    timestamp: new Date('2025-04-29T09:00:00')
+    timestamp: new Date('2025-04-29T09:00:00'),
   },
   {
     id: '2',
     message: 'I need to schedule a meeting with my project team',
     role: 'user',
-    timestamp: new Date('2025-04-29T09:01:00')
+    timestamp: new Date('2025-04-29T09:01:00'),
   },
   {
     id: '3',
-    message: 'I can help with that. When would you like to schedule the meeting?',
+    message:
+      'I can help with that. When would you like to schedule the meeting?',
     role: 'assistant',
-    timestamp: new Date('2025-04-29T09:01:30')
-  }
-]
+    timestamp: new Date('2025-04-29T09:01:30'),
+  },
+];
 
 // Chat API calls
 export const chatApi = {
   // Get chat history
   getHistory: async () => {
-    await delay(500)
-    return { data: mockChatHistory }
+    await delay(500);
+    return { data: mockChatHistory };
   },
-  
+
   // Send message
   sendMessage: async (message) => {
-    await delay(500)
-    
-    let response = 'I\'m sorry, I don\'t understand. Can you be more specific?'
-    
-    if (message.toLowerCase().includes('schedule') || message.toLowerCase().includes('meeting')) {
-      response = 'I can help you schedule a meeting. What day and time works for you?'
-    } else if (message.toLowerCase().includes('deadline') || message.toLowerCase().includes('due')) {
-      response = 'I can help you set a deadline. What\'s the project and when is it due?'
-    } else if (message.toLowerCase().includes('class') || message.toLowerCase().includes('lecture')) {
-      response = 'I can add your class schedule. What course are you taking and when does it meet?'
+    await delay(500);
+
+    let response = "I'm sorry, I don't understand. Can you be more specific?";
+
+    if (
+      message.toLowerCase().includes('schedule') ||
+      message.toLowerCase().includes('meeting')
+    ) {
+      response =
+        'I can help you schedule a meeting. What day and time works for you?';
+    } else if (
+      message.toLowerCase().includes('deadline') ||
+      message.toLowerCase().includes('due')
+    ) {
+      response =
+        "I can help you set a deadline. What's the project and when is it due?";
+    } else if (
+      message.toLowerCase().includes('class') ||
+      message.toLowerCase().includes('lecture')
+    ) {
+      response =
+        'I can add your class schedule. What course are you taking and when does it meet?';
     }
-    
-    return { data: { message: response } }
-  }
-}
+
+    return { data: { message: response } };
+  },
+};
 
 // Mock syllabi
 const mockSyllabi = [
@@ -137,22 +150,22 @@ const mockSyllabi = [
     fileName: 'CSE451_Syllabus.pdf',
     uploadedAt: new Date('2025-04-20T14:30:00'),
     processingStatus: 'completed',
-    eventCount: 15
-  }
-]
+    eventCount: 15,
+  },
+];
 
 // Syllabus API calls
 export const syllabusApi = {
   // Get all syllabi
   getSyllabi: async () => {
-    await delay(500)
-    return { data: mockSyllabi }
+    await delay(500);
+    return { data: mockSyllabi };
   },
-  
+
   // Get syllabus details
   getSyllabusDetails: async (id) => {
-    await delay(500)
-    return { 
+    await delay(500);
+    return {
       data: {
         ...mockSyllabi[0],
         content: 'Sample syllabus content for CSE 451 - Operating Systems...',
@@ -163,7 +176,7 @@ export const syllabusApi = {
             description: 'Threading',
             dueDate: '2025-05-10',
             dueTime: '23:59',
-            location: ''
+            location: '',
           },
           {
             eventType: 'exam',
@@ -171,7 +184,7 @@ export const syllabusApi = {
             description: 'Covers weeks 1-5',
             dueDate: '2025-05-20',
             dueTime: '14:30',
-            location: 'CSE 101'
+            location: 'CSE 101',
           },
           {
             eventType: 'project',
@@ -179,17 +192,17 @@ export const syllabusApi = {
             description: 'Implement a virtual memory system',
             dueDate: '2025-06-10',
             dueTime: '23:59',
-            location: ''
-          }
-        ]
-      }
-    }
+            location: '',
+          },
+        ],
+      },
+    };
   },
-  
+
   // Parse syllabus text
   parseSyllabusText: async (syllabusText, courseName) => {
-    await delay(1500)
-    return { 
+    await delay(1500);
+    return {
       data: {
         syllabusId: Math.random().toString(36).substring(2, 9),
         events: [
@@ -199,7 +212,7 @@ export const syllabusApi = {
             description: 'Threading',
             dueDate: '2025-05-10',
             dueTime: '23:59',
-            location: ''
+            location: '',
           },
           {
             eventType: 'exam',
@@ -207,17 +220,17 @@ export const syllabusApi = {
             description: 'Covers weeks 1-5',
             dueDate: '2025-05-20',
             dueTime: '14:30',
-            location: 'CSE 101'
-          }
-        ]
-      }
-    }
+            location: 'CSE 101',
+          },
+        ],
+      },
+    };
   },
-  
+
   // Upload syllabus file
   uploadSyllabus: async (formData) => {
-    await delay(2000)
-    return { 
+    await delay(2000);
+    return {
       data: {
         syllabusId: Math.random().toString(36).substring(2, 9),
         events: [
@@ -227,7 +240,7 @@ export const syllabusApi = {
             description: 'Threading',
             dueDate: '2025-05-10',
             dueTime: '23:59',
-            location: ''
+            location: '',
           },
           {
             eventType: 'exam',
@@ -235,17 +248,17 @@ export const syllabusApi = {
             description: 'Covers weeks 1-5',
             dueDate: '2025-05-20',
             dueTime: '14:30',
-            location: 'CSE 101'
-          }
-        ]
-      }
-    }
+            location: 'CSE 101',
+          },
+        ],
+      },
+    };
   },
-  
+
   // Add events from syllabus to calendar
   addToCalendar: async (syllabusId, eventIds) => {
-    await delay(1000)
-    return { 
+    await delay(1000);
+    return {
       data: {
         success: true,
         added: eventIds.length,
@@ -254,17 +267,17 @@ export const syllabusApi = {
           original: {
             eventType: 'assignment',
             title: `Event ${i}`,
-            dueDate: '2025-05-10'
+            dueDate: '2025-05-10',
           },
-          googleEventId: Math.random().toString(36).substring(2, 9)
-        }))
-      }
-    }
-  }
-}
+          googleEventId: Math.random().toString(36).substring(2, 9),
+        })),
+      },
+    };
+  },
+};
 
 export default {
   calendar: calendarApi,
   chat: chatApi,
-  syllabus: syllabusApi
-}
+  syllabus: syllabusApi,
+};
