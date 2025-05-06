@@ -1,6 +1,6 @@
 # otto
 
-**Keejay, Judy, Jiahao, Aaron, Braden**
+**Keejay, Judy, Jiahao, Aaron, Braden, Joel**
 
 ## 📘 Overview
 
