@@ -23,7 +23,7 @@ describe('Authentication API', () => {
     password: 'TestPassword123!',
     firstName: 'Test',
     lastName: 'User',
-    role: 'student'
+    role: 'student',
   };
 
   describe('POST /api/auth/register', () => {
@@ -40,9 +40,7 @@ describe('Authentication API', () => {
     });
 
     it('should not allow duplicate email registration', async () => {
-      await request(app)
-        .post('/api/auth/register')
-        .send(mockUser);
+      await request(app).post('/api/auth/register').send(mockUser);
 
       const response = await request(app)
         .post('/api/auth/register')
@@ -66,13 +64,13 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: mockUser.email,
-          password: mockUser.password
+          password: mockUser.password,
         })
         .expect(200);
 
       expect(response.body).toHaveProperty('token');
       expect(response.body.user.email).toBe(mockUser.email);
-      
+
       // Verify token is valid
       const decoded = jwt.verify(response.body.token, process.env.JWT_SECRET);
       expect(decoded.email).toBe(mockUser.email);
@@ -83,7 +81,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: mockUser.email,
-          password: 'wrongpassword'
+          password: 'wrongpassword',
         })
         .expect(401);
 
@@ -113,9 +111,7 @@ describe('Authentication API', () => {
     });
 
     it('should reject requests without token', async () => {
-      await request(app)
-        .get('/api/auth/me')
-        .expect(401);
+      await request(app).get('/api/auth/me').expect(401);
     });
   });
 
@@ -134,7 +130,7 @@ describe('Authentication API', () => {
     it('should update user profile', async () => {
       const updates = {
         firstName: 'Updated',
-        lastName: 'Name'
+        lastName: 'Name',
       };
 
       const response = await request(app)
