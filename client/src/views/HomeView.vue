@@ -78,16 +78,19 @@
       </div>
     </div>
 
-    <div class="calendar-panel">
-      <iframe
-        src="https://calendar.google.com/calendar/embed?src=primary&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1"
-        style="border: 0"
-        width="100%"
-        height="100%"
-        frameborder="0"
-        scrolling="no"
-      >
-      </iframe>
+    div class="calendar-panel">
+      <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
+        <p>Please sign in to view your calendar</p>
+      </div>
+      <div v-else-if="calendarUrl" class="calendar-wrapper">
+        <iframe
+          :src="calendarUrl"
+          style="border: 0"
+          width="100%"
+          height="100%"
+          frameborder="0"
+          scrolling="no"
+        ></iframe>
     </div>
   </div>
 </template>
@@ -95,12 +98,23 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
 
+const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
 const userMessage = ref('');
 const chatMessages = ref([]);
 const fileInput = ref(null);
 const selectedFile = ref(null);
 const isQuickActionsOpen = ref(false);
+
+
+// Compute calendar URL based on user's email
+const calendarUrl = computed(() => {
+  if (!authStore.user?.email) return null;
+  
+  const encodedEmail = encodeURIComponent(authStore.user.email);
+  return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
+});
+
 
 // Toggle quick actions menu
 const toggleQuickActions = () => {
@@ -241,6 +255,21 @@ onMounted(() => {
   padding: 1rem;
   box-sizing: border-box;
   background-color: #f7fafc;
+}
+
+.calendar-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-color: #f7fafc;
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.calendar-wrapper {
+  height: 100%;
+  width: 100%;
 }
 
 .chat-panel {
