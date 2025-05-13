@@ -2,16 +2,24 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const calendarRoutes = require('./routes/calendar');
 const syllabusRoutes = require('./routes/syllabus');
+const authRoutes = require('./routes/auth');
+const cors = require('cors');
 
 const app = express();
+
+app.use(
+  cors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }),
+);
+
 app.use(bodyParser.json());
 
-// Use the calendar routes
 app.use('/api/calendar', calendarRoutes);
-
-//For syllabus parser
-
 app.use('/api/syllabus', syllabusRoutes);
+app.use('/api/auth', authRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -4,3 +4,4 @@ dist
 .vscode
 .DS_Store
 server/config/serviceAccountKey.json
+/server/serviceAccountKey.json

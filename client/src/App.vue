@@ -6,10 +6,16 @@
       </div>
       <div v-if="isLoggedIn" class="user-profile">
         <span class="user-name">{{ userName }}</span>
-        <img :src="userPhoto || '@/assets/default-avatar.svg'" alt="Profile" class="avatar" />
+        <img
+          :src="userPhoto || '@/assets/default-avatar.svg'"
+          alt="Profile"
+          class="avatar"
+        />
+
+        <button class="logout-btn" @click="logout">Logout</button>
       </div>
     </header>
-    
+
     <main class="app-main">
       <router-view />
     </main>
@@ -17,26 +23,28 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
-const router = useRouter()
-const authStore = useAuthStore()
+const router = useRouter();
+const authStore = useAuthStore();
 
-const isLoggedIn = computed(() => authStore.isAuthenticated)
-const userName = computed(() => authStore.getUserProfile?.displayName || 'User')
-const userPhoto = computed(() => authStore.getUserProfile?.photoURL)
+const isLoggedIn = computed(() => authStore.isAuthenticated);
+const userName = computed(
+  () => authStore.getUserProfile?.displayName || 'User',
+);
+const userPhoto = computed(() => authStore.getUserProfile?.photoURL);
 
 onMounted(async () => {
   // Check if user is already logged in
-  await authStore.initialize()
-})
+  authStore.initialize();
+});
 
 const logout = async () => {
-  await authStore.logout()
-  router.push('/login')
-}
+  await authStore.logout();
+  router.push('/login');
+};
 </script>
 
 <style>
@@ -48,7 +56,11 @@ const logout = async () => {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   color: #333;
   background-color: #f5f7fa;
 }

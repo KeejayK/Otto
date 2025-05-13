@@ -1,14 +1,18 @@
 // server/routes/syllabus.js
 
-const express    = require('express');
-const multer     = require('multer');
-const path       = require('path');
-const fs         = require('fs').promises;
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
 
+<<<<<<< HEAD
 
 const { loadImage, loadPdfOrImage }  = require('../services/ocr/loader');
+=======
+const { loadImage } = require('../services/ocr/loader');
+>>>>>>> 980f128ea3cb57a8b551ffa9345ff159bd4c44a1
 const { preprocess } = require('../services/ocr/preprocess');
-const { runOCR }     = require('../services/ocr/engine');
+const { runOCR } = require('../services/ocr/engine');
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
@@ -59,4 +63,3 @@ router.post('/', upload.single('file'), async (req, res, next) => {
 });
 
 module.exports = router;
-
