@@ -9,7 +9,7 @@ import HomeView from '@/views/HomeView.vue';
 const routes = [
   {
     path: '/',
-    redirect: '/login'
+    redirect: '/login',
   },
   {
     path: '/login',
@@ -20,7 +20,7 @@ const routes = [
     path: '/home',
     name: 'home',
     component: HomeView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
   },
 ];
 

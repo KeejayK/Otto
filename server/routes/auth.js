@@ -13,12 +13,19 @@ router.post('/google', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    await admin.firestore().collection('users').doc(uid).set({
-      google: {
-        accessToken,
-        updatedAt: new Date()
-      }
-    }, { merge: true });
+    await admin
+      .firestore()
+      .collection('users')
+      .doc(uid)
+      .set(
+        {
+          google: {
+            accessToken,
+            updatedAt: new Date(),
+          },
+        },
+        { merge: true },
+      );
 
     res.json({ success: true });
   } catch (error) {
