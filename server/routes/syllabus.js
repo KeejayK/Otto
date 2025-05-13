@@ -6,7 +6,7 @@ const path       = require('path');
 const fs         = require('fs').promises;
 
 
-const { loadImage }  = require('../services/ocr/loader');
+const { loadImage, loadPdfOrImage }  = require('../services/ocr/loader');
 const { preprocess } = require('../services/ocr/preprocess');
 const { runOCR }     = require('../services/ocr/engine');
 
@@ -21,22 +21,36 @@ router.post('/', upload.single('file'), async (req, res, next) => {
   }
 
   const uploadedPath = path.resolve(req.file.path);
+  const fileBuffer = await fs.readFile(uploadedPath);
+  console.log('Uploaded file path:', uploadedPath);
+  console.log('Uploaded file size:', fileBuffer.length);
+  console.log('First 16 bytes:', fileBuffer.slice(0, 16));
 
   try {
-    // 1. Load (PDF first page or image) into a buffer or image object
-    const image = await loadImage(uploadedPath);
+    const pdfParse = require('pdf-parse');
+    const data = await pdfParse(fileBuffer);
+    console.log('pdf-parse data:', data);
 
-    // 2. Pre‑process (grayscale, scale, binarize…)
-    const cleanImage = await preprocess(image);
+    let resultText = '';
+    if (data.text && data.text.trim().length > 0) {
+      resultText = data.text;
+      console.log('Returning direct extracted text:', resultText);
+    } else {
+      // fallback to OCR if needed
+      const { buffer: image } = await loadPdfOrImage(uploadedPath);
+      if (image) {
+        const cleanImage = await preprocess(image);
+        const ocrResult = await runOCR(cleanImage);
+        resultText = ocrResult.text || ocrResult;
+        console.log('Returning OCR fallback text:', resultText);
+      } else {
+        resultText = '[ERROR: Could not extract text from PDF]';
+        console.log('Returning error text:', resultText);
+      }
+    }
 
-    // 3. Run the OCR engine to get raw text
-    const rawText = await runOCR(cleanImage);
-
-    // 4. Clean up the upload temp file
     await fs.unlink(uploadedPath);
-
-    // 5. Return the text
-    return res.json({ text: rawText });
+    return res.json({ text: resultText });
   } catch (err) {
     // Clean up on error, then forward
     await fs.unlink(uploadedPath).catch(() => {});
