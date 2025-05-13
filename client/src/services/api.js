@@ -50,6 +50,42 @@ const mockEvents = [
   },
 ];
 
+// Function to add a Google Calendar event
+export const addGoogleCalendarEvent = async (event) => {
+  try {
+    const response = await fetch('http://localhost:3000/add-event', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    });
+    if (!response.ok) {
+      throw new Error('Error creating event');
+    }
+    return await response.text();
+  } catch (error) {
+    console.error('Error:', error);
+    throw error;
+  }
+};
+
+// Function to delete a Google Calendar event
+export const deleteGoogleCalendarEvent = async (eventId) => {
+  try {
+    const response = await fetch(`http://localhost:3000/delete-event/${eventId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Error deleting event');
+    }
+    return await response.text();
+  } catch (error) {
+    console.error('Error:', error);
+    throw error;
+  }
+};
+
 // Calendar API calls
 export const calendarApi = {
   // Get events
