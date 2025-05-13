@@ -78,7 +78,6 @@
       </div>
     </div>
 
-    div class="calendar-panel">
     <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
       <p>Please sign in to view your calendar</p>
     </div>
