@@ -58,4 +58,25 @@ router.delete('/delete-event/:eventId', async (req, res) => {
   }
 });
 
+// Route to get all Google Calendar events for a certain month
+router.get('/events/:year/:month', async (req, res) => {
+  const { year, month } = req.params;
+  const startDate = new Date(year, month - 1, 1).toISOString();
+  const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+
+  try {
+    const response = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: startDate,
+      timeMax: endDate,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+    res.status(200).json(response.data.items);
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).send('Error fetching events');
+  }
+});
+
 module.exports = router;
