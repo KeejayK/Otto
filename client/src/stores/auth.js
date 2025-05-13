@@ -1,109 +1,57 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { loginWithGoogle } from '@/services/auth';
+import { auth } from '@/firebase';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 
-export const useAuthStore = defineStore('auth', () => {
-  // For demo purposes, we'll simulate an authenticated user
-  const user = ref({
-    uid: '123456',
-    displayName: 'Charlie Brown',
-    email: 'charlie@example.com',
-    photoURL: '', // Placeholder for user photo URL
-  });
+export const useAuthStore = defineStore('auth', {
+  state: () => ({
+    user: null,
+    idToken: null,
+    accessToken: null,
+  }),
+  actions: {
+    async login() {
+      const { idToken, accessToken, user } = await loginWithGoogle();
+      this.user = user;
+      this.idToken = idToken;
+      this.accessToken = accessToken;
 
-  const loading = ref(false);
-  const error = ref(null);
+      await fetch('http://localhost:3000/api/auth/google', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accessToken }),
+      });
+    },
 
-  // Check if user is authenticated
-  const isAuthenticated = computed(() => !!user.value);
+    async logout() {
+      await signOut(auth);
+      this.user = null;
+      this.idToken = null;
+      this.accessToken = null;
+    },
 
-  // Get user profile
-  const getUserProfile = computed(() => {
-    if (!user.value) return null;
+    getUserProfile() {
+      return this.user;
+    },
 
-    return {
-      uid: user.value.uid,
-      displayName: user.value.displayName,
-      email: user.value.email,
-      photoURL: user.value.photoURL,
-    };
-  });
+    get isAuthenticated() {
+      return !!this.user;
+    },
 
-  // Initialize auth state - in a real app, this would check Firebase auth
-  const initialize = async () => {
-    // Simulate loading
-    loading.value = true;
-
-    try {
-      // In a real app, this would check if user is already logged in
-      // with Firebase or another auth provider
-
-      // For demo, we'll just use our simulated user
-      // No change to user ref needed
-
-      return user.value;
-    } catch (err) {
-      error.value = 'Authentication error';
-      user.value = null;
-      return null;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  // Login - in a real app, this would use Firebase or another auth provider
-  const login = async () => {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      // Simulate login success
-      // No change to user ref needed as we're already "logged in"
-
-      return user.value;
-    } catch (err) {
-      error.value = 'Login failed';
-      throw new Error('Login failed');
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  // Logout - in a real app, this would use Firebase or another auth provider
-  const logout = async () => {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      // Simulate logout
-      // In a real app, this would sign out from Firebase
-      // For demo purposes, we'll keep the user logged in
-
-      // user.value = null
-
-      return true;
-    } catch (err) {
-      error.value = 'Logout failed';
-      throw new Error('Logout failed');
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  // Get ID token for API calls
-  const getIdToken = async () => {
-    //  NEED TO CHANGE: Return the Firebase ID token
-    return 'demo-token-123456';
-  };
-
-  return {
-    user,
-    loading,
-    error,
-    isAuthenticated,
-    getUserProfile,
-    initialize,
-    login,
-    logout,
-    getIdToken,
-  };
+    initialize() {
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          this.user = user;
+          this.idToken = await user.getIdToken();
+        } else {
+          this.user = null;
+          this.idToken = null;
+          this.accessToken = null;
+        }
+      });
+    },
+  },
 });

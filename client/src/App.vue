@@ -11,6 +11,8 @@
           alt="Profile"
           class="avatar"
         />
+
+        <button class="logout-btn" @click="logout">Logout</button>
       </div>
     </header>
 
@@ -36,7 +38,7 @@ const userPhoto = computed(() => authStore.getUserProfile?.photoURL);
 
 onMounted(async () => {
   // Check if user is already logged in
-  await authStore.initialize();
+  authStore.initialize();
 });
 
 const logout = async () => {
