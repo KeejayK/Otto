@@ -171,50 +171,40 @@ const uploadFile = async () => {
   }
 };
 
-// Send message
-const sendMessage = async () => {
-  const message = userMessage.value.trim();
-  if (!message) return;
+// Update the chatApi object
+export const chatApi = {
+  // Get chat history remains the same for now
+  getHistory: async () => {
+    await delay(500);
+    return { data: mockChatHistory };
+  },
 
-  // Add user message to chat
-  chatMessages.value.push({
-    role: 'user',
-    content: message,
-  });
+  // Replace the sendMessage function
+  sendMessage: async (message) => {
+    try {
+      const response = await fetch('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      });
 
-  // Clear input
-  userMessage.value = '';
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
 
-  // Scroll to bottom
-  await scrollToBottom();
-
-  // Simulate response
-  setTimeout(() => {
-    let response = '';
-
-    if (message.toLowerCase().includes('add new class')) {
-      response =
-        "I'd be happy to add a new class. Please tell me the class name, schedule (days and times), and location.";
-    } else if (message.toLowerCase().includes('add new event')) {
-      response =
-        "I'll help you add a new event. What's the name, date, time, and location?";
-    } else if (message.toLowerCase().includes('see events')) {
-      response =
-        'Here are your events for this week: \n- CSE 451 Lecture (Mon, Wed, Fri 10:30-11:20am)\n- Study Group (Tuesday 2-4pm)\n- Project Deadline (Friday 11:59pm)';
-    } else if (message.toLowerCase().includes('change')) {
-      response = 'Which event would you like to change?';
-    } else {
-      response =
-        "I'm Otto, your calendar assistant. I can help you manage your schedule. Try asking me to add an event, check your schedule, or upload your class schedule.";
+      const data = await response.json();
+      return {
+        data: {
+          message: `Event created! View it here: ${data.calendarLink}`,
+        },
+      };
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
     }
-
-    chatMessages.value.push({
-      role: 'assistant',
-      content: response, // Simulated response
-    });
-
-    scrollToBottom();
-  }, 800);
+  },
 };
 
 // Scroll chat to bottom

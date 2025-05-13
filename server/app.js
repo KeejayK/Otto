@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const calendarRoutes = require('./routes/calendar');
 const syllabusRoutes = require('./routes/syllabus');
+const chatRoutes = require('./routes/chat');
 const authRoutes = require('./routes/auth');
 const cors = require('cors');
 

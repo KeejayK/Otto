@@ -1,319 +1,131 @@
-// For a real app, you would use axios or fetch to make API calls
-// For this frontend demo, we'll simulate API responses
+import axios from 'axios';
 
-// Simulate API delay
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Mock calendar events
-const mockEvents = [
-  {
-    id: '1',
-    summary: 'CSE 451 Lecture',
-    description: 'Operating Systems lecture',
-    start: {
-      dateTime: '2025-04-29T10:30:00',
-      timeZone: 'America/Los_Angeles',
-    },
-    end: {
-      dateTime: '2025-04-29T11:20:00',
-      timeZone: 'America/Los_Angeles',
-    },
-    location: 'CSE Building 105',
+// Create axios instance with base configuration
+const api = axios.create({
+  baseURL: 'http://localhost:3000/api',
+  headers: {
+    'Content-Type': 'application/json',
   },
-  {
-    id: '2',
-    summary: 'Project Team Meeting',
-    description: 'Weekly team meeting to discuss progress',
-    start: {
-      dateTime: '2025-04-30T14:00:00',
-      timeZone: 'America/Los_Angeles',
-    },
-    end: {
-      dateTime: '2025-04-30T16:00:00',
-      timeZone: 'America/Los_Angeles',
-    },
-    location: 'Library Study Room 3',
-  },
-  {
-    id: '3',
-    summary: 'CSE 451 Project Deadline',
-    description: 'Submit final project',
-    start: {
-      dateTime: '2025-05-02T23:59:00',
-      timeZone: 'America/Los_Angeles',
-    },
-    end: {
-      dateTime: '2025-05-02T23:59:00',
-      timeZone: 'America/Los_Angeles',
-    },
-    location: '',
-  },
-];
-
-// Function to add a Google Calendar event
-export const addGoogleCalendarEvent = async (event) => {
-  try {
-    const response = await fetch('http://localhost:3000/add-event', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(event),
-    });
-    if (!response.ok) {
-      throw new Error('Error creating event');
-    }
-    return await response.text();
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
-};
-
-// Function to delete a Google Calendar event
-export const deleteGoogleCalendarEvent = async (eventId) => {
-  try {
-    const response = await fetch(`http://localhost:3000/delete-event/${eventId}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error('Error deleting event');
-    }
-    return await response.text();
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
-};
+});
 
 // Calendar API calls
 export const calendarApi = {
   // Get events
   getEvents: async () => {
-    await delay(500);
-    return { data: mockEvents };
+    const response = await api.get('/calendar/events');
+    return response.data;
   },
 
   // Create event
   createEvent: async (event) => {
-    await delay(500);
-    const newEvent = {
-      id: Math.random().toString(36).substring(2, 9),
-      ...event,
-    };
-    return { data: newEvent };
+    const response = await api.post('/calendar/add-event', event);
+    return response.data;
   },
 
   // Update event
   updateEvent: async (eventId, event) => {
-    await delay(500);
-    return { data: { id: eventId, ...event } };
+    const response = await api.put(`/calendar/events/${eventId}`, event);
+    return response.data;
   },
 
   // Delete event
   deleteEvent: async (eventId) => {
-    await delay(500);
-    return { data: { success: true } };
-  },
+    const response = await api.delete(`/calendar/delete-event/${eventId}`);
+    return response.data;
+  }
 };
-
-// Mock chat history
-const mockChatHistory = [
-  {
-    id: '1',
-    message: 'Hello! How can I help you today?',
-    role: 'assistant',
-    timestamp: new Date('2025-04-29T09:00:00'),
-  },
-  {
-    id: '2',
-    message: 'I need to schedule a meeting with my project team',
-    role: 'user',
-    timestamp: new Date('2025-04-29T09:01:00'),
-  },
-  {
-    id: '3',
-    message:
-      'I can help with that. When would you like to schedule the meeting?',
-    role: 'assistant',
-    timestamp: new Date('2025-04-29T09:01:30'),
-  },
-];
 
 // Chat API calls
 export const chatApi = {
   // Get chat history
   getHistory: async () => {
-    await delay(500);
-    return { data: mockChatHistory };
+    const response = await api.get('/chat/history');
+    return response.data;
   },
 
   // Send message
   sendMessage: async (message) => {
-    await delay(500);
-
-    let response = "I'm sorry, I don't understand. Can you be more specific?";
-
-    if (
-      message.toLowerCase().includes('schedule') ||
-      message.toLowerCase().includes('meeting')
-    ) {
-      response =
-        'I can help you schedule a meeting. What day and time works for you?';
-    } else if (
-      message.toLowerCase().includes('deadline') ||
-      message.toLowerCase().includes('due')
-    ) {
-      response =
-        "I can help you set a deadline. What's the project and when is it due?";
-    } else if (
-      message.toLowerCase().includes('class') ||
-      message.toLowerCase().includes('lecture')
-    ) {
-      response =
-        'I can add your class schedule. What course are you taking and when does it meet?';
+    try {
+      const response = await api.post('/chat', { message });
+      return {
+        data: {
+          message: response.data.message,
+          calendarLink: response.data.calendarLink
+        }
+      };
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
     }
-
-    return { data: { message: response } };
-  },
+  }
 };
-
-// Mock syllabi
-const mockSyllabi = [
-  {
-    id: '1',
-    courseName: 'CSE 451 - Operating Systems',
-    fileName: 'CSE451_Syllabus.pdf',
-    uploadedAt: new Date('2025-04-20T14:30:00'),
-    processingStatus: 'completed',
-    eventCount: 15,
-  },
-];
 
 // Syllabus API calls
 export const syllabusApi = {
   // Get all syllabi
   getSyllabi: async () => {
-    await delay(500);
-    return { data: mockSyllabi };
+    const response = await api.get('/syllabus');
+    return response.data;
   },
 
   // Get syllabus details
   getSyllabusDetails: async (id) => {
-    await delay(500);
-    return {
-      data: {
-        ...mockSyllabi[0],
-        content: 'Sample syllabus content for CSE 451 - Operating Systems...',
-        parsedEvents: [
-          {
-            eventType: 'assignment',
-            title: 'Assignment 1',
-            description: 'Threading',
-            dueDate: '2025-05-10',
-            dueTime: '23:59',
-            location: '',
-          },
-          {
-            eventType: 'exam',
-            title: 'Midterm Exam',
-            description: 'Covers weeks 1-5',
-            dueDate: '2025-05-20',
-            dueTime: '14:30',
-            location: 'CSE 101',
-          },
-          {
-            eventType: 'project',
-            title: 'Final Project',
-            description: 'Implement a virtual memory system',
-            dueDate: '2025-06-10',
-            dueTime: '23:59',
-            location: '',
-          },
-        ],
-      },
-    };
+    const response = await api.get(`/syllabus/${id}`);
+    return response.data;
   },
 
   // Parse syllabus text
   parseSyllabusText: async (syllabusText, courseName) => {
-    await delay(1500);
-    return {
-      data: {
-        syllabusId: Math.random().toString(36).substring(2, 9),
-        events: [
-          {
-            eventType: 'assignment',
-            title: 'Assignment 1',
-            description: 'Threading',
-            dueDate: '2025-05-10',
-            dueTime: '23:59',
-            location: '',
-          },
-          {
-            eventType: 'exam',
-            title: 'Midterm Exam',
-            description: 'Covers weeks 1-5',
-            dueDate: '2025-05-20',
-            dueTime: '14:30',
-            location: 'CSE 101',
-          },
-        ],
-      },
-    };
+    const response = await api.post('/syllabus/parse', {
+      text: syllabusText,
+      courseName
+    });
+    return response.data;
   },
 
   // Upload syllabus file
   uploadSyllabus: async (formData) => {
-    await delay(2000);
-    return {
-      data: {
-        syllabusId: Math.random().toString(36).substring(2, 9),
-        events: [
-          {
-            eventType: 'assignment',
-            title: 'Assignment 1',
-            description: 'Threading',
-            dueDate: '2025-05-10',
-            dueTime: '23:59',
-            location: '',
-          },
-          {
-            eventType: 'exam',
-            title: 'Midterm Exam',
-            description: 'Covers weeks 1-5',
-            dueDate: '2025-05-20',
-            dueTime: '14:30',
-            location: 'CSE 101',
-          },
-        ],
-      },
-    };
+    const response = await api.post('/syllabus', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
   },
 
   // Add events from syllabus to calendar
   addToCalendar: async (syllabusId, eventIds) => {
-    await delay(1000);
-    return {
-      data: {
-        success: true,
-        added: eventIds.length,
-        failed: 0,
-        events: eventIds.map((_, i) => ({
-          original: {
-            eventType: 'assignment',
-            title: `Event ${i}`,
-            dueDate: '2025-05-10',
-          },
-          googleEventId: Math.random().toString(36).substring(2, 9),
-        })),
-      },
-    };
-  },
+    const response = await api.post(`/syllabus/${syllabusId}/events`, {
+      eventIds
+    });
+    return response.data;
+  }
 };
+
+// Auth interceptor to add token to requests
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+// Error interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Handle unauthorized access
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default {
   calendar: calendarApi,
   chat: chatApi,
   syllabus: syllabusApi,
+  setAuthToken
 };
