@@ -22,7 +22,9 @@
   },
   "homepage": "https://github.com/KeejayK/otto#readme",
   "dependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "pdf-parse": "^1.1.1",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "path": "^0.12.7"
