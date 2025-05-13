@@ -32,11 +32,14 @@ jobs:
       - name: Check formatting
         run: npm run format
 
+      - name: Write service account key to file
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" | base64 -d > server/serviceAccountKey.json
+        working-directory: .
+      
+
       - name: Run tests
         run: npm run test
 
       - name: Build frontend
         run: npm run build
 
-      - name: Write service account key to file
-        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" | base64 -d > serviceAccountKey.json
