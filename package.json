@@ -28,7 +28,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "concurrently": "^8.2.2",
-    "firebase": "^11.7.1",
+    "firebase-admin": "^13.4.0",
     "mongoose": "^8.14.1",
     "pinia": "^3.0.2",
     "vue-router": "^4.5.1"

@@ -13,8 +13,18 @@ jest.mock('googleapis', () => {
       list: jest.fn().mockResolvedValue({
         data: {
           items: [
-            { id: '1', summary: 'Event 1', start: { dateTime: '2023-03-01T10:00:00Z' }, end: { dateTime: '2023-03-01T11:00:00Z' } },
-            { id: '2', summary: 'Event 2', start: { dateTime: '2023-03-15T12:00:00Z' }, end: { dateTime: '2023-03-15T13:00:00Z' } },
+            {
+              id: '1',
+              summary: 'Event 1',
+              start: { dateTime: '2023-03-01T10:00:00Z' },
+              end: { dateTime: '2023-03-01T11:00:00Z' },
+            },
+            {
+              id: '2',
+              summary: 'Event 2',
+              start: { dateTime: '2023-03-15T12:00:00Z' },
+              end: { dateTime: '2023-03-15T13:00:00Z' },
+            },
           ],
         },
       }),
@@ -53,24 +63,38 @@ describe('Calendar API', () => {
   it('should delete a calendar event', async () => {
     const eventId = '1';
 
-    const response = await request(app)
-      .delete(`/api/calendar/delete-event/${eventId}`);
+    const response = await request(app).delete(
+      `/api/calendar/delete-event/${eventId}`,
+    );
 
     expect(response.status).toBe(200);
-    expect(response.text).toContain(`Event with ID ${eventId} deleted successfully.`);
+    expect(response.text).toContain(
+      `Event with ID ${eventId} deleted successfully.`,
+    );
   });
 
   it('should get all calendar events for a specific month', async () => {
     const year = 2023;
     const month = 3; // March
 
-    const response = await request(app)
-      .get(`/api/calendar/events/${year}/${month}`);
+    const response = await request(app).get(
+      `/api/calendar/events/${year}/${month}`,
+    );
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([
-      { id: '1', summary: 'Event 1', start: { dateTime: '2023-03-01T10:00:00Z' }, end: { dateTime: '2023-03-01T11:00:00Z' } },
-      { id: '2', summary: 'Event 2', start: { dateTime: '2023-03-15T12:00:00Z' }, end: { dateTime: '2023-03-15T13:00:00Z' } },
+      {
+        id: '1',
+        summary: 'Event 1',
+        start: { dateTime: '2023-03-01T10:00:00Z' },
+        end: { dateTime: '2023-03-01T11:00:00Z' },
+      },
+      {
+        id: '2',
+        summary: 'Event 2',
+        start: { dateTime: '2023-03-15T12:00:00Z' },
+        end: { dateTime: '2023-03-15T13:00:00Z' },
+      },
     ]);
   });
 });
