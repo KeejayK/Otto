@@ -96,7 +96,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import { chatApi } from '@/services/api';  // Import the existing chatApi
 
 const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
@@ -106,7 +108,6 @@ const fileInput = ref(null);
 const selectedFile = ref(null);
 const isQuickActionsOpen = ref(false);
 
-
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
   if (!authStore.user?.email) return null;
@@ -115,7 +116,39 @@ const calendarUrl = computed(() => {
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
+// Send message function
+const sendMessage = async () => {
+  if (!userMessage.value.trim()) return;
 
+  const messageText = userMessage.value;
+  userMessage.value = '';
+
+  // Add user message to chat
+  chatMessages.value.push({
+    role: 'user',
+    content: messageText,
+  });
+
+  try {
+    // Use the imported chatApi
+    const response = await chatApi.sendMessage(messageText);
+    
+    chatMessages.value.push({
+      role: 'assistant',
+      content: response.data.message,
+    });
+  } catch (error) {
+    console.error('Error sending message:', error);
+    chatMessages.value.push({
+      role: 'system',
+      content: 'Sorry, I encountered an error. Please try again.',
+    });
+  }
+
+  scrollToBottom();
+};
+
+// Rest of your existing functions...
 // Toggle quick actions menu
 const toggleQuickActions = () => {
   isQuickActionsOpen.value = !isQuickActionsOpen.value;
@@ -125,7 +158,7 @@ const toggleQuickActions = () => {
 const handleQuickAction = (action) => {
   userMessage.value = action;
   sendMessage();
-  isQuickActionsOpen.value = false; // Close quick actions after selection
+  isQuickActionsOpen.value = false;
 };
 
 // Open file upload dialog
@@ -137,16 +170,11 @@ const openFileUpload = () => {
 const handleFileUpload = (event) => {
   selectedFile.value = event.target.files[0];
   if (selectedFile.value) {
-    // Notify user that a file is selected
     chatMessages.value.push({
       role: 'user',
       content: `Selected file: ${selectedFile.value.name}`,
     });
-
-    // Automatically upload the file
     uploadFile();
-
-    // Scroll to bottom
     scrollToBottom();
   }
 };
@@ -168,11 +196,8 @@ const uploadFile = async () => {
         content: `I've analyzed your ${selectedFile.value.name}. I found several important dates. Would you like me to add them to your calendar?`,
       });
 
-      // Clear the file input
       fileInput.value.value = '';
       selectedFile.value = null;
-
-      // Scroll to bottom
       scrollToBottom();
     }, 1500);
   } catch (error) {
@@ -185,42 +210,6 @@ const uploadFile = async () => {
   }
 };
 
-// Update the chatApi object
-export const chatApi = {
-  // Get chat history remains the same for now
-  getHistory: async () => {
-    await delay(500);
-    return { data: mockChatHistory };
-  },
-
-  // Replace the sendMessage function
-  sendMessage: async (message) => {
-    try {
-      const response = await fetch('http://localhost:3000/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-
-      const data = await response.json();
-      return {
-        data: {
-          message: `Event created! View it here: ${data.calendarLink}`,
-        },
-      };
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  },
-};
-
 // Scroll chat to bottom
 const scrollToBottom = async () => {
   await nextTick();
@@ -230,15 +219,11 @@ const scrollToBottom = async () => {
 };
 
 onMounted(() => {
-  // Add welcome message
   console.log('HomeView mounted');
   chatMessages.value.push({
     role: 'assistant',
-    content:
-      "Hi there! I'm Otto, your calendar assistant. How can I help you today?",
+    content: "Hi there! I'm Otto, your calendar assistant. How can I help you today?",
   });
-
-  // Set initial scroll position
   scrollToBottom();
 });
 </script>
