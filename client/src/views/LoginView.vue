@@ -23,14 +23,19 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
-const loginWithGoogle = () => {
-  // For demo purposes, just redirect to home
-  router.push('/home'); // Replace with your auth logic
-
-  // Implement Google OAuth flow here using Firebase
+const loginWithGoogle = async () => {
+  try {
+    await authStore.login();
+    router.push('/home');
+  } catch (error) {
+    console.error('Login error:', error);
+    alert('Google Sign-In failed. Please try again.');
+  }
 };
 </script>
 
