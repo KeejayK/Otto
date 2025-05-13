@@ -32,7 +32,7 @@ export const calendarApi = {
   deleteEvent: async (eventId) => {
     const response = await api.delete(`/calendar/delete-event/${eventId}`);
     return response.data;
-  }
+  },
 };
 
 // Chat API calls
@@ -50,14 +50,14 @@ export const chatApi = {
       return {
         data: {
           message: response.data.message,
-          calendarLink: response.data.calendarLink
-        }
+          calendarLink: response.data.calendarLink,
+        },
       };
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
     }
-  }
+  },
 };
 
 // Syllabus API calls
@@ -78,7 +78,7 @@ export const syllabusApi = {
   parseSyllabusText: async (syllabusText, courseName) => {
     const response = await api.post('/syllabus/parse', {
       text: syllabusText,
-      courseName
+      courseName,
     });
     return response.data;
   },
@@ -87,8 +87,8 @@ export const syllabusApi = {
   uploadSyllabus: async (formData) => {
     const response = await api.post('/syllabus', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   },
@@ -96,10 +96,10 @@ export const syllabusApi = {
   // Add events from syllabus to calendar
   addToCalendar: async (syllabusId, eventIds) => {
     const response = await api.post(`/syllabus/${syllabusId}/events`, {
-      eventIds
+      eventIds,
     });
     return response.data;
-  }
+  },
 };
 
 // Auth interceptor to add token to requests
@@ -120,12 +120,12 @@ api.interceptors.response.use(
       window.location.href = '/login';
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default {
   calendar: calendarApi,
   chat: chatApi,
   syllabus: syllabusApi,
-  setAuthToken
+  setAuthToken,
 };

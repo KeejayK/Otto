@@ -12,9 +12,10 @@ describe('POST /api/chat', () => {
       chat: {
         completions: {
           create: jest.fn().mockResolvedValue({
-            choices: [{
-              message: {
-                content: `
+            choices: [
+              {
+                message: {
+                  content: `
                 {
                   "title": "Test Event",
                   "start": "2025-05-13T10:00",
@@ -23,11 +24,13 @@ describe('POST /api/chat', () => {
                   "description": "Unit test event"
                 }
               `,
-            },
-          }],
-        }),
+                },
+              },
+            ],
+          }),
+        },
       },
-  }}));
+    }));
 
     axios.post.mockResolvedValue({
       data: 'Event created: https://calendar.google.com/event123',

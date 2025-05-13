@@ -8,7 +8,7 @@ const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/calendar.events'
+  'https://www.googleapis.com/auth/calendar.events',
 ];
 
 export const useAuthStore = defineStore('auth', {
@@ -44,13 +44,16 @@ export const useAuthStore = defineStore('auth', {
       if (!this.user || this.calendarAccess) return;
 
       try {
-        const response = await fetch('http://localhost:3000/api/auth/calendar-access', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.idToken}`,
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          'http://localhost:3000/api/auth/calendar-access',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.idToken}`,
+              'Content-Type': 'application/json',
+            },
           },
-        });
+        );
 
         if (response.ok) {
           this.calendarAccess = true;

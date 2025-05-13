@@ -28,13 +28,13 @@ router.post('/', async (req, res) => {
   try {
     // Determine message intent
     const intent = await classifyIntent(userMessage);
-    
+
     // Handle based on intent
     if (intent === 'query') {
       // TODO: Implement query handling
       return res.status(200).json({
         message: 'I can help you find that information...',
-        type: 'query'
+        type: 'query',
       });
     }
 
@@ -53,40 +53,42 @@ router.post('/', async (req, res) => {
     const parsedEvent = parseGPTResponse(gptOutput);
 
     // Step 4: Forward event to calendar creation route
-    const calendarResponse = await axios.post('http://localhost:3000/api/calendar/add-event', {
-      summary: parsedEvent.title,
-      location: parsedEvent.location,
-      description: parsedEvent.description || '',
-      start: parsedEvent.start,
-      end: parsedEvent.end,
-    });
+    const calendarResponse = await axios.post(
+      'http://localhost:3000/api/calendar/add-event',
+      {
+        summary: parsedEvent.title,
+        location: parsedEvent.location,
+        description: parsedEvent.description || '',
+        start: parsedEvent.start,
+        end: parsedEvent.end,
+      },
+    );
 
     // Step 5: Store in chat history
     chatHistory.push({
       id: Date.now().toString(),
       message: userMessage,
       role: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     chatHistory.push({
       id: (Date.now() + 1).toString(),
       message: `Event created! View it here: ${calendarResponse.data}`,
       role: 'assistant',
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     return res.status(200).json({
       message: 'Event created',
       calendarLink: calendarResponse.data,
-      type: 'event'
+      type: 'event',
     });
-
   } catch (err) {
     console.error('Error in chat route:', err.message);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Something went wrong',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
   }
 });

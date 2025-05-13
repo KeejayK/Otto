@@ -1,5 +1,5 @@
 function buildPrompt(userInput) {
-    return `
+  return `
   You are an assistant that extracts event details for a Google Calendar from natural language input.
   
   Given the message below, return a JSON object with the following fields:
@@ -13,7 +13,6 @@ function buildPrompt(userInput) {
   
   Respond only with a valid JSON object.
   `;
-  }
-  
-  module.exports = { buildPrompt };
-  
+}
+
+module.exports = { buildPrompt };

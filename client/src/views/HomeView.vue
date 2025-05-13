@@ -79,18 +79,18 @@
     </div>
 
     div class="calendar-panel">
-      <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
-        <p>Please sign in to view your calendar</p>
-      </div>
-      <div v-else-if="calendarUrl" class="calendar-wrapper">
-        <iframe
-          :src="calendarUrl"
-          style="border: 0"
-          width="100%"
-          height="100%"
-          frameborder="0"
-          scrolling="no"
-        ></iframe>
+    <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
+      <p>Please sign in to view your calendar</p>
+    </div>
+    <div v-else-if="calendarUrl" class="calendar-wrapper">
+      <iframe
+        :src="calendarUrl"
+        style="border: 0"
+        width="100%"
+        height="100%"
+        frameborder="0"
+        scrolling="no"
+      ></iframe>
     </div>
   </div>
 </template>
@@ -98,7 +98,7 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
-import { chatApi } from '@/services/api';  // Import the existing chatApi
+import { chatApi } from '@/services/api'; // Import the existing chatApi
 
 const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
@@ -111,7 +111,7 @@ const isQuickActionsOpen = ref(false);
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
   if (!authStore.user?.email) return null;
-  
+
   const encodedEmail = encodeURIComponent(authStore.user.email);
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
@@ -132,7 +132,7 @@ const sendMessage = async () => {
   try {
     // Use the imported chatApi
     const response = await chatApi.sendMessage(messageText);
-    
+
     chatMessages.value.push({
       role: 'assistant',
       content: response.data.message,
@@ -222,7 +222,8 @@ onMounted(() => {
   console.log('HomeView mounted');
   chatMessages.value.push({
     role: 'assistant',
-    content: "Hi there! I'm Otto, your calendar assistant. How can I help you today?",
+    content:
+      "Hi there! I'm Otto, your calendar assistant. How can I help you today?",
   });
   scrollToBottom();
 });
