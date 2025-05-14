@@ -7,14 +7,20 @@ function parseGPTResponse(gptOutput) {
 
     const eventData = JSON.parse(jsonString);
 
-    // Optionally: basic validation
-    if (!eventData.title || !eventData.start || !eventData.end) {
+    // must have title, start, end
+    const { title, start, end } = eventData;
+    if (!title || !start || !end) {
       throw new Error('Missing required event fields.');
     }
+
+    // optional
+    eventData.description = eventData.description || '';
+    eventData.location = eventData.location || '';
 
     return eventData;
   } catch (err) {
     console.error('Failed to parse GPT response:', err.message);
+    console.error('Raw GPT output was:', gptOutput);
     throw new Error('Invalid GPT response format');
   }
 }
