@@ -79,4 +79,30 @@ router.get('/events/:year/:month', async (req, res) => {
   }
 });
 
+// Route to modify a Google Calendar event
+router.put('/modify-event/:eventId', async (req, res) => {
+  const { eventId } = req.params;
+  const { summary, location, description, start, end } = req.body;
+
+  const event = {
+    summary,
+    location,
+    description,
+    start: { dateTime: start, timeZone: 'America/Los_Angeles' },
+    end: { dateTime: end, timeZone: 'America/Los_Angeles' },
+  };
+
+  try {
+    const response = await calendar.events.update({
+      calendarId: 'primary',
+      eventId: eventId,
+      resource: event,
+    });
+    res.status(200).send(`Event updated: ${response.data.htmlLink}`);
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).send('Error updating event');
+  }
+});
+
 module.exports = router;
