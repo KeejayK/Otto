@@ -33,6 +33,7 @@
     "firebase": "^11.7.1",
     "firebase-admin": "^13.4.0",
     "mongoose": "^8.14.1",
+    "openai": "^4.98.0",
     "pinia": "^3.0.2",
     "vue-router": "^4.5.1"
   },
