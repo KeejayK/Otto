@@ -1,22 +1,31 @@
 const express = require('express');
 const { google } = require('googleapis');
+const admin = require('firebase-admin');
 
 const router = express.Router();
 
-// Set up OAuth2 client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:3000/oauth2callback', // Redirect URL
-);
-
-// Set the credentials
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-});
-
 // Create a calendar instance
-const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+const calendar = google.calendar({ version: 'v3' });
+
+// Function to get the access token from Firestore
+async function getAccessToken(uid) {
+  const userDoc = await admin.firestore().collection('users').doc(uid).get();
+  if (userDoc.exists) {
+    return userDoc.data().google.accessToken;
+  } else {
+    throw new Error('User not found');
+  }
+}
+
+// Function to set up OAuth2 client with access token
+async function setupOAuth2Client(uid) {
+  const accessToken = await getAccessToken(uid);
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+  });
+  return oauth2Client;
+}
 
 // Route to create a Google Calendar event
 router.post('/add-event', async (req, res) => {
@@ -102,6 +111,20 @@ router.put('/modify-event/:eventId', async (req, res) => {
   } catch (error) {
     console.error('Error updating event:', error);
     res.status(500).send('Error updating event');
+  }
+});
+
+// Example usage in a route
+router.get('/some-protected-route', async (req, res) => {
+  try {
+    const uid = req.user.uid; // Assume req.user is set by authentication middleware
+    const oauth2Client = await setupOAuth2Client(uid);
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    // Use the calendar instance for further API calls
+    res.status(200).json({ message: 'OAuth2 client set up successfully' });
+  } catch (error) {
+    console.error('Error setting up OAuth2 client:', error);
+    res.status(500).json({ error: 'Failed to set up OAuth2 client' });
   }
 });
 
