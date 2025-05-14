@@ -32,6 +32,14 @@ Otto is an intelligent calendar assistant built for students. Speak naturally to
 - **NLP**: OpenAI GPT4 API, Langchain,
 - **Calendar Integration** Google Calendar API, OAuth 2.0
 
+### Dependencies
+
+- Node.js (v16 or later)
+- npm (v7 or later)
+- Google Cloud account for OAuth credentials
+- Firebase project
+- OpenAI API key
+
 ### Installation
 
 Install from source
@@ -42,19 +50,33 @@ cd otto
 npm install
 ```
 
-### Dependencies
+### Required Configs
 
-- Node.js (v16 or later)
-- npm (v7 or later)
-- Google Cloud account for OAuth credentials
-- Firebase project
-- OpenAI API key
+/server/.env
 
-### Configs
+```.env
+OPENAI_API_KEY=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
 
-Google Cloud Setup
+/server/serviceAccountKey.json
 
-Firebase Setup
+```serviceAccountKey.json
+
+{
+    "type": "service_account",
+    "project_id": "",
+    "private_key_id": "",
+    "private_key": "",
+    "client_id": "",
+    "auth_uri": "",
+    "token_uri": "",
+    "auth_provider_x509_cert_url": "",
+    "client_x509_cert_url": "",
+    "universe_domain": ""
+}
+```
 
 ### Usage
 

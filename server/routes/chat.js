@@ -3,7 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const { OpenAI } = require('openai');
 
-const { buildPrompt }    = require('../services/nlp/gptPromptManager');
+const { buildPrompt } = require('../services/nlp/gptPromptManager');
 const { parseGPTResponse } = require('../services/nlp/parseResponse');
 const { classifyIntent } = require('../services/nlp/classifyIntent');
 
@@ -58,38 +58,38 @@ router.post('/', async (req, res) => {
     const calendarResponse = await axios.post(
       'http://localhost:3000/api/calendar/add-event',
       {
-        summary:     parsedEvent.title,
-        location:    parsedEvent.location,
+        summary: parsedEvent.title,
+        location: parsedEvent.location,
         description: parsedEvent.description || '',
-        start:       parsedEvent.start,
-        end:         parsedEvent.end,
+        start: parsedEvent.start,
+        end: parsedEvent.end,
       },
     );
 
     // Step 5: Store in chat history
     chatHistory.push({
-      id:        Date.now().toString(),
-      message:   userMessage,
-      role:      'user',
+      id: Date.now().toString(),
+      message: userMessage,
+      role: 'user',
       timestamp: new Date(),
     });
 
     chatHistory.push({
-      id:        (Date.now() + 1).toString(),
-      message:   `Event created! View it here: ${calendarResponse.data}`,
-      role:      'assistant',
+      id: (Date.now() + 1).toString(),
+      message: `Event created! View it here: ${calendarResponse.data}`,
+      role: 'assistant',
       timestamp: new Date(),
     });
 
     return res.status(200).json({
-      message:      'Event created',
+      message: 'Event created',
       calendarLink: calendarResponse.data,
-      type:         'event',
+      type: 'event',
     });
   } catch (err) {
     console.error('Error in chat route:', err.message);
     return res.status(500).json({
-      error:   'Something went wrong',
+      error: 'Something went wrong',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
   }
