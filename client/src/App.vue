@@ -4,14 +4,14 @@
       <div class="logo">
         <img src="@/assets/logo.png" alt="Otto" />
       </div>
-      <div v-if="isLoggedIn" class="user-profile">
+      <!-- <div v-if="isLoggedIn" class="user-profile">
         <span class="user-name">{{ userName }}</span>
         <img
           :src="userPhoto || '@/assets/default-avatar.svg'"
           alt="Profile"
           class="avatar"
         />
-      </div>
+      </div> -->
     </header>
 
     <main class="app-main">

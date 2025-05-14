@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    <div class="calendar-panel">
+    <!-- <div class="calendar-panel">
       <iframe
         src="https://calendar.google.com/calendar/embed?src=primary&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1"
         style="border: 0"
@@ -88,7 +88,7 @@
         scrolling="no"
       >
       </iframe>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -188,21 +188,28 @@ const sendMessage = async () => {
   // Scroll to bottom
   await scrollToBottom();
 
-  // Simulate response
+ // Simulate response
   setTimeout(() => {
     let response = '';
+    const lastBotMessage = chatMessages.value
+      .filter(msg => msg.role === 'assistant')
+      .pop()?.content;
 
     if (message.toLowerCase().includes('add new class')) {
       response =
         "I'd be happy to add a new class. Please tell me the class name, schedule (days and times), and location.";
+    } else if (lastBotMessage?.includes('add a new class')) {
+      response = "The event has been added to your calendar";
     } else if (message.toLowerCase().includes('add new event')) {
       response =
         "I'll help you add a new event. What's the name, date, time, and location?";
     } else if (message.toLowerCase().includes('see events')) {
       response =
         'Here are your events for this week: \n- CSE 451 Lecture (Mon, Wed, Fri 10:30-11:20am)\n- Study Group (Tuesday 2-4pm)\n- Project Deadline (Friday 11:59pm)';
-    } else if (message.toLowerCase().includes('change')) {
+    } else if (message.toLowerCase().includes('change current event')) {
       response = 'Which event would you like to change?';
+    } else if (lastBotMessage?.includes('Which event would you like to change?')) {
+      response = "Your event has been changed successfully!";
     } else {
       response =
         "I'm Otto, your calendar assistant. I can help you manage your schedule. Try asking me to add an event, check your schedule, or upload your class schedule.";

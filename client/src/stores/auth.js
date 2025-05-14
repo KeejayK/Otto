@@ -5,7 +5,7 @@ export const useAuthStore = defineStore('auth', () => {
   // For demo purposes, we'll simulate an authenticated user
   const user = ref({
     uid: '123456',
-    displayName: 'Charlie Brown',
+    // displayName: 'Charlie Brown',
     email: 'charlie@example.com',
     photoURL: '', // Placeholder for user photo URL
   });
