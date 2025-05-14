@@ -1,3 +1,12 @@
+import axios from 'axios';
+
+// Create axios instance with base configuration
+const api = axios.create({
+  baseURL: 'http://localhost:3000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 // For a real app, you would use axios or fetch to make API calls
 // For this frontend demo, we'll simulate API responses
 
@@ -54,12 +63,17 @@ const mockEvents = [
 export const calendarApi = {
   // Get events
   getEvents: async () => {
+    const response = await api.get('/calendar/events');
+    return response.data;
     await delay(500);
     return { data: mockEvents };
   },
 
+
   // Create event
   createEvent: async (event) => {
+    const response = await api.post('/calendar/add-event', event);
+    return response.data;
     await delay(500);
     const newEvent = {
       id: Math.random().toString(36).substring(2, 9),
@@ -68,14 +82,22 @@ export const calendarApi = {
     return { data: newEvent };
   },
 
+
   // Update event
   updateEvent: async (eventId, event) => {
+    const response = await api.put(`/calendar/events/${eventId}`, event);
+    return response.data;
     await delay(500);
     return { data: { id: eventId, ...event } };
   },
 
+
   // Delete event
   deleteEvent: async (eventId) => {
+    const response = await api.delete(`/calendar/delete-event/${eventId}`);
+    return response.data;
+  },
+};
     await delay(500);
     return { data: { success: true } };
   },
@@ -108,9 +130,12 @@ const mockChatHistory = [
 export const chatApi = {
   // Get chat history
   getHistory: async () => {
+    const response = await api.get('/chat/history');
+    return response.data;
     await delay(500);
     return { data: mockChatHistory };
   },
+
 
   // Send message
   sendMessage: async (message) => {
@@ -279,5 +304,9 @@ export const syllabusApi = {
 export default {
   calendar: calendarApi,
   chat: chatApi,
+  syllabus: syllabusApi,
+  setAuthToken,
+};
+
   syllabus: syllabusApi,
 };

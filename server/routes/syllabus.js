@@ -5,12 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 
-<<<<<<< HEAD
-
 const { loadImage, loadPdfOrImage }  = require('../services/ocr/loader');
-=======
-const { loadImage } = require('../services/ocr/loader');
->>>>>>> 980f128ea3cb57a8b551ffa9345ff159bd4c44a1
 const { preprocess } = require('../services/ocr/preprocess');
 const { runOCR } = require('../services/ocr/engine');
 

@@ -1,8 +1,14 @@
 // server/tests/syllabus.test.js
 const request = require('supertest');
-const app = require('../app');
+const createApp = require('../app');
 const path = require('path');
 const { initializeWorker, terminateWorker } = require('../services/ocr/engine');
+
+// Prevent Firebase from initializing during this test
+jest.mock('../firebase.js', () => ({}));
+
+// Only include the syllabus route for testing
+const app = createApp({ includeAuth: false, includeCalendar: false, includeSyllabus: true });
 
 describe('PDF Syllabus Extraction', () => {
   beforeAll(async () => {
