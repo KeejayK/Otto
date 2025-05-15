@@ -25,9 +25,14 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'No message provided' });
   }
 
+  console.log(`Received message: ${userMessage}`)
+
   try {
     // Determine message intent
+
     const intent = await classifyIntent(userMessage);
+    console.log(`Intent classified as: ${intent}`)
+
 
     // Handle based on intent
     if (intent === 'query') {
@@ -41,6 +46,8 @@ router.post('/', async (req, res) => {
     // Step 1: Build GPT prompt
     const prompt = buildPrompt(userMessage);
 
+    console.log(`Sending prompt to GPT`)
+
     // Step 2: Send prompt to GPT-3.5 Turbo
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -49,12 +56,15 @@ router.post('/', async (req, res) => {
 
     const gptOutput = completion.choices[0].message.content;
 
-    console.log('[GPT OUTPUT]', gptOutput);
+    console.log(`GPT OUTPUT ${gptOutput}`);
 
     // Step 3: Parse GPT's output into event object
     const parsedEvent = parseGPTResponse(gptOutput);
 
     // Step 4: Forward event to calendar creation route
+
+    console.log('Forwarding to /calendar/add-event')
+
     const calendarResponse = await axios.post(
       'http://localhost:3000/api/calendar/add-event',
       {
@@ -64,15 +74,22 @@ router.post('/', async (req, res) => {
         start: parsedEvent.start,
         end: parsedEvent.end,
       },
+      { headers: {
+        Authorization: req.headers.authorization
+      }}
     );
 
     // Step 5: Store in chat history
+
+    console.log('Storing message in chat history')
     chatHistory.push({
       id: Date.now().toString(),
       message: userMessage,
       role: 'user',
       timestamp: new Date(),
     });
+
+    console.log('Storing event in chat history')
 
     chatHistory.push({
       id: (Date.now() + 1).toString(),

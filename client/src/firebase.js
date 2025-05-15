@@ -22,4 +22,10 @@ const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/calendar');
 provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
+provider.setCustomParameters({
+  access_type: 'offline',
+  prompt:       'consent'
+});
+
+
 export { auth, provider };
