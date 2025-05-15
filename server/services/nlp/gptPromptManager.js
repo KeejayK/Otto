@@ -1,6 +1,10 @@
 function buildPrompt(userInput) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  console.log(`today's date is: ${today}`)
   return `
   You are an assistant that extracts event details for a Google Calendar from natural language input.
+
+  Assume that today is ${today}
   
   Given the message below, return a JSON object with the following fields:
   - title: string
