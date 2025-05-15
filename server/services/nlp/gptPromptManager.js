@@ -14,6 +14,7 @@ function buildPrompt(userInput) {
   - end: string (ISO 8601 format)
 
   If there is only one start time, you should estimate a reasonable duration based on the event.
+  If an aspect of the message, like am or pm isn't specified, interpret reasonably.
   
   Message: "${userInput}"
   
