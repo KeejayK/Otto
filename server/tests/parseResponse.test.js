@@ -24,7 +24,9 @@ describe('parseGPTResponse', () => {
 
   test('throws an error for invalid JSON', () => {
     const malformedOutput = `This is not JSON at all!`;
-    expect(() => parseGPTResponse(malformedOutput)).toThrow('Invalid GPT response format');
+    expect(() => parseGPTResponse(malformedOutput)).toThrow(
+      'Invalid GPT response format',
+    );
   });
 
   test('throws an error if required fields are missing', () => {
@@ -33,6 +35,8 @@ describe('parseGPTResponse', () => {
         "title": "Incomplete Event"
       }
     `;
-    expect(() => parseGPTResponse(incompleteOutput)).toThrow('Missing required event fields');
+    expect(() => parseGPTResponse(incompleteOutput)).toThrow(
+      'Missing required event fields',
+    );
   });
 });

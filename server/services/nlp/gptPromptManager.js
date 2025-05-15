@@ -1,5 +1,5 @@
 function buildPrompt(userInput) {
-    return `
+  return `
   You are an assistant that extracts event details for a Google Calendar from natural language input.
   
   Given the message below, return a JSON object with the following fields:
@@ -8,12 +8,13 @@ function buildPrompt(userInput) {
   - description: string (optional)
   - start: string (ISO 8601 format, e.g., "2025-05-06T10:00")
   - end: string (ISO 8601 format)
+
+  If there is only one start time, you should estimate a reasonable duration based on the event.
   
   Message: "${userInput}"
   
   Respond only with a valid JSON object.
   `;
-  }
-  
-  module.exports = { buildPrompt };
-  
+}
+
+module.exports = { buildPrompt };

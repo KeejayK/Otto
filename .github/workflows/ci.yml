@@ -1,10 +1,11 @@
 name: CI/CD Pipeline
 
 on:
-  pull_request:
-    branches: [main, dev, backend, frontend, keejay, braden, aaron]
   push:
-    branches: [main, dev, backend, frontend, keejay, braden, aaron]
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -14,25 +15,34 @@ jobs:
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Lint code
-      run: npm run lint
+      - name: Install client dependencies
+        run: cd client && npm install
 
-    - name: Check formatting
-      run: npm run format
+      - name: Lint code
+        run: npm run lint
 
-    - name: Run tests
-      run: npm run test
+      - name: Check formatting
+        run: npm run format
 
-    - name: Build frontend
-      run: npm run build
+      - name: Write service account key to file
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" | base64 -d > server/serviceAccountKey.json
+        working-directory: .
+      
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build frontend
+        run: npm run build
+

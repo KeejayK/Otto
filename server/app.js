@@ -21,6 +21,7 @@ app.use(bodyParser.json());
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/syllabus', syllabusRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 404 handler
 app.use((req, res) => {

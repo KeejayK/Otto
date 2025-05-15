@@ -39,6 +39,8 @@ describe('PUT /api/calendar/modify-event/:eventId', () => {
       .send(updatedEventData);
 
     expect(response.status).toBe(200);
-    expect(response.text).toContain('Event updated: http://example.com/updated-event');
+    expect(response.text).toContain(
+      'Event updated: http://example.com/updated-event',
+    );
   });
 });
