@@ -1,7 +1,6 @@
 import axios from 'axios';
-import { useAuthStore } from '@/stores/auth';
 
-// Create axios instance
+// Create axios instance with base configuration
 const api = axios.create({
   baseURL: 'http://localhost:3000/api',
   headers: {
@@ -9,86 +8,124 @@ const api = axios.create({
   },
 });
 
-// Automatically attach the Firebase ID token on every request
-api.interceptors.request.use((config) => {
-  const authStore = useAuthStore();
-  if (authStore.idToken) {
-    config.headers.Authorization = `Bearer ${authStore.idToken}`;
-  }
-  return config;
-});
+// Calendar API calls
+export const calendarApi = {
+  // Get events
+  getEvents: async () => {
+    const response = await api.get('/calendar/events');
+    return response.data;
+  },
 
-// Redirect to login on 401
+  // Create event
+  createEvent: async (event) => {
+    const response = await api.post('/calendar/add-event', event);
+    return response.data;
+  },
+
+  // Update event
+  updateEvent: async (eventId, event) => {
+    const response = await api.put(`/calendar/events/${eventId}`, event);
+    return response.data;
+  },
+
+  // Delete event
+  deleteEvent: async (eventId) => {
+    const response = await api.delete(`/calendar/delete-event/${eventId}`);
+    return response.data;
+  },
+};
+
+// Chat API calls
+export const chatApi = {
+  // Get chat history
+  getHistory: async () => {
+    const response = await api.get('/chat/history');
+    return response.data;
+  },
+
+  // Send message
+  sendMessage: async (message) => {
+    try {
+      const response = await api.post('/chat', { message });
+      return {
+        data: {
+          message: response.data.message,
+          calendarLink: response.data.calendarLink,
+        },
+      };
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+};
+
+// Syllabus API calls
+export const syllabusApi = {
+  // Get all syllabi
+  getSyllabi: async () => {
+    const response = await api.get('/syllabus');
+    return response.data;
+  },
+
+  // Get syllabus details
+  getSyllabusDetails: async (id) => {
+    const response = await api.get(`/syllabus/${id}`);
+    return response.data;
+  },
+
+  // Parse syllabus text
+  parseSyllabusText: async (syllabusText, courseName) => {
+    const response = await api.post('/syllabus/parse', {
+      text: syllabusText,
+      courseName,
+    });
+    return response.data;
+  },
+
+  // Upload syllabus file
+  uploadSyllabus: async (formData) => {
+    const response = await api.post('/syllabus', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Add events from syllabus to calendar
+  addToCalendar: async (syllabusId, eventIds) => {
+    const response = await api.post(`/syllabus/${syllabusId}/events`, {
+      eventIds,
+    });
+    return response.data;
+  },
+};
+
+// Auth interceptor to add token to requests
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+// Error interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Handle unauthorized access
       window.location.href = '/login';
     }
     return Promise.reject(error);
-  }
+  },
 );
-
-// Calendar API
-export const calendarApi = {
-  getEvents: async () => {
-    const res = await api.get('/calendar/events');
-    return res.data;
-  },
-  createEvent: async (event) => {
-    const res = await api.post('/calendar/add-event', event);
-    return res.data;      // { htmlLink: '…' }
-  },
-  updateEvent: async (eventId, event) => {
-    const res = await api.put(`/calendar/events/${eventId}`, event);
-    return res.data;
-  },
-  deleteEvent: async (eventId) => {
-    const res = await api.delete(`/calendar/delete-event/${eventId}`);
-    return res.data;
-  },
-};
-
-// Chat API
-export const chatApi = {
-  getHistory: async () => {
-    const res = await api.get('/chat/history');
-    return res.data;      // array of { id, message, role, timestamp }
-  },
-  sendMessage: async (message) => {
-    const res = await api.post('/chat', { message });
-    return { data: res.data };      // { message: 'Event created', calendarLink: '…', type }
-  },
-};
-
-// Syllabus API
-export const syllabusApi = {
-  getSyllabi: async () => {
-    const res = await api.get('/syllabus');
-    return res.data;
-  },
-  getSyllabusDetails: async (id) => {
-    const res = await api.get(`/syllabus/${id}`);
-    return res.data;
-  },
-  parseSyllabusText: async (text, courseName) => {
-    const res = await api.post('/syllabus/parse', { text, courseName });
-    return res.data;
-  },
-  uploadSyllabus: async (formData) => {
-    const res = await api.post('/syllabus', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return res.data;
-  },
-  addToCalendar: async (syllabusId, eventIds) => {
-    const res = await api.post(`/syllabus/${syllabusId}/events`, { eventIds });
-    return res.data;
-  },
-};
 
 export default {
   calendar: calendarApi,
   chat: chatApi,
   syllabus: syllabusApi,
+  setAuthToken,
 };

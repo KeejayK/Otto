@@ -83,8 +83,6 @@
     </div>
     <div v-else-if="calendarUrl" class="calendar-wrapper">
       <iframe
-        ref="calendarIframe"
-        :key="iframeKey"
         :src="calendarUrl"
         style="border: 0"
         width="100%"
@@ -108,18 +106,13 @@ const chatMessages = ref([]);
 const fileInput = ref(null);
 const selectedFile = ref(null);
 const isQuickActionsOpen = ref(false);
-const iframeKey = ref(0);
 
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
   if (!authStore.user?.email) return null;
 
   const encodedEmail = encodeURIComponent(authStore.user.email);
-
-  // TODO: user should be able to change timezones
-  // return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
-  return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
-
+  return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
 // Send message function
@@ -137,31 +130,18 @@ const sendMessage = async () => {
 
   try {
     // Use the imported chatApi
-
-    // TODO: assistant should be able to clarify details like location
     const response = await chatApi.sendMessage(messageText);
-    console.log('Response from chatApi:')
-    console.log(response)
 
     chatMessages.value.push({
       role: 'assistant',
       content: response.data.message,
     });
-
-    // once event is pushed, refresh calendar iframe
-    if (response.data.type == 'event') {
-      iframeKey.value += 1
-      await nextTick()      
-    }
-
   } catch (error) {
     console.error('Error sending message:', error);
     chatMessages.value.push({
       role: 'system',
       content: 'Sorry, I encountered an error. Please try again.',
     });
-
-  
   }
 
   scrollToBottom();

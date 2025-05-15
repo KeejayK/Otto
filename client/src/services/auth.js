@@ -16,7 +16,6 @@ export async function loginWithGoogle() {
     throw new Error('Google OAuth credential not found');
   }
   const accessToken = credential.accessToken;
-  const refreshToken = credential.refreshToken;
 
-  return { idToken, accessToken, refreshToken, user };
+  return { idToken, accessToken, user };
 }
