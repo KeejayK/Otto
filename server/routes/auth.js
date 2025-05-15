@@ -6,10 +6,19 @@ const router = express.Router();
 
 router.post('/google', verifyFirebaseToken, async (req, res) => {
   const uid = req.user.uid;
-  const { accessToken } = req.body;
+  const { accessToken, refreshToken } = req.body;
 
   if (!accessToken) {
     return res.status(400).json({ error: 'Missing Google access token' });
+  }
+
+  const googleData = {
+    accessToken,
+    updatedAt: new Date()
+  }
+
+  if (refreshToken) {
+    googleData.refreshToken = refreshToken
   }
 
   try {
@@ -18,12 +27,7 @@ router.post('/google', verifyFirebaseToken, async (req, res) => {
       .collection('users')
       .doc(uid)
       .set(
-        {
-          google: {
-            accessToken,
-            updatedAt: new Date(),
-          },
-        },
+        { google: googleData },
         { merge: true },
       );
 
