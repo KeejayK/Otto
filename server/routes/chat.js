@@ -81,13 +81,15 @@ router.post('/', async (req, res) => {
 
     // Step 5: Store in chat history
 
-    console.log('Storing in chat history')
+    console.log('Storing message in chat history')
     chatHistory.push({
       id: Date.now().toString(),
       message: userMessage,
       role: 'user',
       timestamp: new Date(),
     });
+
+    console.log('Storing event in chat history')
 
     chatHistory.push({
       id: (Date.now() + 1).toString(),

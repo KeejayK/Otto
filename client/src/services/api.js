@@ -57,7 +57,7 @@ export const chatApi = {
   },
   sendMessage: async (message) => {
     const res = await api.post('/chat', { message });
-    return res.data;      // { message: 'Event created', calendarLink: '…', type }
+    return { data: res.data };      // { message: 'Event created', calendarLink: '…', type }
   },
 };
 

@@ -131,6 +131,8 @@ const sendMessage = async () => {
   try {
     // Use the imported chatApi
     const response = await chatApi.sendMessage(messageText);
+    console.log('Response from chatApi:')
+    console.log(response)
 
     chatMessages.value.push({
       role: 'assistant',

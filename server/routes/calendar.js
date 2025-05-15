@@ -54,12 +54,25 @@ router.post('/add-event', verifyFirebaseToken, async (req, res) => {
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
     // Build the event resource
+
+    console.log(`startDate: ${start}`)
+    console.log(`endDate: ${end}`)
+
+    const startDate = new Date(start);
+    const endDate = new Date(end)
+
+    const isoStart = startDate.toISOString(); 
+    const isoEnd = endDate.toISOString(); 
+
+    console.log(`${isoStart}, ${isoEnd}`)
+
+
     const event = {
       summary,
       location,
       description,
-      start: { dateTime: start },
-      end: { dateTime: end },
+      start: { dateTime: isoStart, timeZone: 'America/Los_Angeles' },
+      end: { dateTime: isoEnd, timeZone: 'America/Los_Angeles' },
     };
 
     console.log('Insert event')

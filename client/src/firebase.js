@@ -23,8 +23,8 @@ provider.addScope('https://www.googleapis.com/auth/calendar');
 provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
 provider.setCustomParameters({
-  access_type: 'offline',  // request a refresh token
-  prompt:       'consent'  // force showing the consent screen so you actually get the refresh_token
+  access_type: 'offline',
+  prompt:       'consent'
 });
 
 
