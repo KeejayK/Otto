@@ -10,23 +10,27 @@ jest.mock('googleapis', () => {
         data: { htmlLink: 'http://example.com/event' },
       }),
       delete: jest.fn().mockResolvedValue({}),
-      list: jest.fn().mockResolvedValue({
-        data: {
-          items: [
-            {
-              id: '1',
-              summary: 'Event 1',
-              start: { dateTime: '2023-03-01T10:00:00Z' },
-              end: { dateTime: '2023-03-01T11:00:00Z' },
+      list: jest.fn((params) => {
+        if (params.calendarId === 'primary') {
+          return Promise.resolve({
+            data: {
+              items: [
+                {
+                  id: '2',
+                  summary: 'Future Event',
+                  start: { dateTime: '2025-10-15T12:00:00Z' },
+                  end: { dateTime: '2025-10-15T13:00:00Z' },
+                },
+              ],
             },
-            {
-              id: '2',
-              summary: 'Event 2',
-              start: { dateTime: '2023-03-15T12:00:00Z' },
-              end: { dateTime: '2023-03-15T13:00:00Z' },
+          });
+        } else {
+          return Promise.resolve({
+            data: {
+              items: [],
             },
-          ],
-        },
+          });
+        }
       }),
       get: jest.fn().mockResolvedValue({
         data: {
@@ -134,5 +138,14 @@ describe('Calendar API', () => {
 
     console.log('Delete Event Response:', response.status);
     expect(response.status).toBe(204);
+  });
+
+  it('should list only future calendar events', async () => {
+    const response = await request(app).get('/api/calendar/list-events');
+
+    console.log('List Events Response:', response.body);
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].summary).toBe('Future Event');
   });
 });

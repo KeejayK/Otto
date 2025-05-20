@@ -42,7 +42,11 @@ export const calendarApi = {
   deleteEvent: async (eventId) => {
     const res = await api.delete(`/calendar/delete-event/${eventId}`);
     return res.data;
-  }
+  },
+  listEvents: async () => {
+    const res = await api.get('/calendar/list-events');
+    return res.data;
+  },
 };
 
 // Chat API

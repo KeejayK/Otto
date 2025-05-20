@@ -5,6 +5,35 @@ const verifyFirebaseToken = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to initialize Google Calendar API
+async function initializeGoogleCalendar(uid) {
+  // Retrieve stored Google credentials
+  console.log('Retrieving google creds');
+  const userDoc = await admin.firestore().collection('users').doc(uid).get();
+  const googleCreds = userDoc.data().google;
+  if (!googleCreds?.accessToken) {
+    throw new Error('Missing Google access token');
+  }
+
+  console.log('Initializing Oauth2 Client');
+  // Initialize OAuth2 client
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+  );
+
+  console.log('Setting credentials');
+  const tokens = { access_token: googleCreds.accessToken };
+  if (googleCreds.refreshToken) {
+    tokens.refresh_token = googleCreds.refreshToken;
+  }
+  oauth2Client.setCredentials(tokens);
+
+  console.log('Initializing calendar');
+  // Initialize Calendar API with auth
+  return google.calendar({ version: 'v3', auth: oauth2Client });
+}
+
 // POST /api/calendar/add-event
 router.post('/add-event', verifyFirebaseToken, async (req, res) => {
   console.log(`POST /api/calendar/add-event`);
@@ -12,53 +41,7 @@ router.post('/add-event', verifyFirebaseToken, async (req, res) => {
   const { summary, location, description, start, end } = req.body;
 
   try {
-    // Retrieve stored Google credentials
-
-    console.log('Retrieving google creds');
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    const googleCreds = userDoc.data().google;
-    if (!googleCreds?.accessToken) {
-      return res.status(400).json({ error: 'Missing Google access token' });
-    }
-
-    console.log('Initializing Oauth2 Client');
-    // Initialize OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
-
-    // Set credentials (include refresh token if stored)
-    console.log('Setting credentials');
-    const tokens = { access_token: googleCreds.accessToken };
-    if (googleCreds.refreshToken) {
-      tokens.refresh_token = googleCreds.refreshToken;
-    }
-    oauth2Client.setCredentials(tokens);
-
-    // Optional: listen for token refresh and update Firestore
-    oauth2Client.on('tokens', async (newTokens) => {
-      if (newTokens.refresh_token) {
-        // Save new refresh token
-        await admin
-          .firestore()
-          .collection('users')
-          .doc(uid)
-          .set(
-            {
-              google: { refreshToken: newTokens.refresh_token },
-            },
-            { merge: true },
-          );
-      }
-    });
-
-    console.log('Initializing calendar');
-
-    // Initialize Calendar API with auth
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-
-    // Build the event resource
+    const calendar = await initializeGoogleCalendar(uid);
 
     console.log(`startDate: ${start}`);
     console.log(`endDate: ${end}`);
@@ -104,33 +87,7 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
   const { eventId, summary, location, description, start, end } = req.body;
 
   try {
-    // Retrieve stored Google credentials
-    console.log('Retrieving google creds');
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    const googleCreds = userDoc.data().google;
-    if (!googleCreds?.accessToken) {
-      return res.status(400).json({ error: 'Missing Google access token' });
-    }
-
-    console.log('Initializing Oauth2 Client');
-    // Initialize OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
-
-    // Set credentials (include refresh token if stored)
-    console.log('Setting credentials');
-    const tokens = { access_token: googleCreds.accessToken };
-    if (googleCreds.refreshToken) {
-      tokens.refresh_token = googleCreds.refreshToken;
-    }
-    oauth2Client.setCredentials(tokens);
-
-    console.log('Initializing calendar');
-
-    // Initialize Calendar API with auth
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const calendar = await initializeGoogleCalendar(uid);
 
     // Retrieve the event to check if it exists
     try {
@@ -188,33 +145,7 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
   const { eventId } = req.params;
 
   try {
-    // Retrieve stored Google credentials
-    console.log('Retrieving google creds');
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    const googleCreds = userDoc.data().google;
-    if (!googleCreds?.accessToken) {
-      return res.status(400).json({ error: 'Missing Google access token' });
-    }
-
-    console.log('Initializing Oauth2 Client');
-    // Initialize OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
-
-    // Set credentials (include refresh token if stored)
-    console.log('Setting credentials');
-    const tokens = { access_token: googleCreds.accessToken };
-    if (googleCreds.refreshToken) {
-      tokens.refresh_token = googleCreds.refreshToken;
-    }
-    oauth2Client.setCredentials(tokens);
-
-    console.log('Initializing calendar');
-
-    // Initialize Calendar API with auth
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const calendar = await initializeGoogleCalendar(uid);
 
     // Retrieve the event
     const response = await calendar.events.get({
@@ -242,37 +173,7 @@ router.delete(
     const { eventId } = req.params;
 
     try {
-      // Retrieve stored Google credentials
-      console.log('Retrieving google creds');
-      const userDoc = await admin
-        .firestore()
-        .collection('users')
-        .doc(uid)
-        .get();
-      const googleCreds = userDoc.data().google;
-      if (!googleCreds?.accessToken) {
-        return res.status(400).json({ error: 'Missing Google access token' });
-      }
-
-      console.log('Initializing Oauth2 Client');
-      // Initialize OAuth2 client
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-      );
-
-      // Set credentials (include refresh token if stored)
-      console.log('Setting credentials');
-      const tokens = { access_token: googleCreds.accessToken };
-      if (googleCreds.refreshToken) {
-        tokens.refresh_token = googleCreds.refreshToken;
-      }
-      oauth2Client.setCredentials(tokens);
-
-      console.log('Initializing calendar');
-
-      // Initialize Calendar API with auth
-      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      const calendar = await initializeGoogleCalendar(uid);
 
       // Retrieve the event to check if it exists
       try {
@@ -303,5 +204,25 @@ router.delete(
     }
   },
 );
+
+// GET /api/calendar/list-events
+router.get('/list-events', verifyFirebaseToken, async (req, res) => {
+  console.log(`GET /api/calendar/list-events`);
+  const uid = req.user.uid;
+
+  try {
+    const calendar = await initializeGoogleCalendar(uid);
+
+    const response = await calendar.events.list({
+      calendarId: 'primary',
+      maxResults: 1,
+    });
+
+    return res.json(response.data.items);
+  } catch (error) {
+    console.error('Error listing events:', error);
+    return res.status(500).json({ error: 'Failed to list calendar events' });
+  }
+});
 
 module.exports = router;
