@@ -119,7 +119,6 @@ const calendarUrl = computed(() => {
   // TODO: user should be able to change timezones
   // return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
-
 });
 
 // Send message function
@@ -140,8 +139,8 @@ const sendMessage = async () => {
 
     // TODO: assistant should be able to clarify details like location
     const response = await chatApi.sendMessage(messageText);
-    console.log('Response from chatApi:')
-    console.log(response)
+    console.log('Response from chatApi:');
+    console.log(response);
 
     chatMessages.value.push({
       role: 'assistant',
@@ -150,18 +149,15 @@ const sendMessage = async () => {
 
     // once event is pushed, refresh calendar iframe
     if (response.data.type == 'event') {
-      iframeKey.value += 1
-      await nextTick()      
+      iframeKey.value += 1;
+      await nextTick();
     }
-
   } catch (error) {
     console.error('Error sending message:', error);
     chatMessages.value.push({
       role: 'system',
       content: 'Sorry, I encountered an error. Please try again.',
     });
-
-  
   }
 
   scrollToBottom();
