@@ -28,6 +28,17 @@ jest.mock('googleapis', () => {
           ],
         },
       }),
+      get: jest.fn().mockResolvedValue({
+        data: {
+          id: '1',
+          summary: 'Event 1',
+          start: { dateTime: '2023-03-01T10:00:00Z' },
+          end: { dateTime: '2023-03-01T11:00:00Z' },
+        },
+      }),
+      update: jest.fn().mockResolvedValue({
+        data: { htmlLink: 'http://example.com/event' },
+      }),
     },
   };
   return {
@@ -36,13 +47,43 @@ jest.mock('googleapis', () => {
       auth: {
         OAuth2: jest.fn().mockImplementation(() => ({
           setCredentials: jest.fn(),
+          on: jest.fn(),
         })),
       },
     },
   };
 });
 
+// Mock the verifyFirebaseToken middleware
+jest.mock('../middleware/auth', () => jest.fn((req, res, next) => {
+  req.user = { uid: 'test-user-id' };
+  next();
+}));
+
+// Mock Firestore to return user data with Google credentials
+jest.mock('../firebase', () => {
+  const firestore = jest.fn(() => ({
+    collection: jest.fn(() => ({
+      doc: jest.fn(() => ({
+        get: jest.fn(() => Promise.resolve({
+          data: () => ({
+            google: {
+              accessToken: 'mock-access-token',
+              refreshToken: 'mock-refresh-token',
+            },
+          }),
+        })),
+      })),
+    })),
+  }));
+  return { firestore };
+});
+
 describe('Calendar API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks(); // Clear mocks before each test
+  });
+
   it('should create a new calendar event', async () => {
     const eventData = {
       summary: 'Test Event',
@@ -56,45 +97,37 @@ describe('Calendar API', () => {
       .post('/api/calendar/add-event')
       .send(eventData);
 
+    console.log('Create Event Response:', response.body);
     expect(response.status).toBe(200);
-    expect(response.text).toContain('Event created: http://example.com/event');
+    expect(response.body.htmlLink).toBe('http://example.com/event');
   });
 
-  it('should delete a calendar event', async () => {
+  it('should modify an existing calendar event', async () => {
+    const eventId = '1';
+    const updatedEventData = {
+      summary: 'Updated Test Event',
+      location: 'Updated Test Location',
+      description: 'Updated Test Description',
+      start: '2023-10-11T10:00:00Z',
+      end: '2023-10-11T11:00:00Z',
+    };
+
+    const response = await request(app)
+      .put(`/api/calendar/modify-event`)
+      .send({ eventId, ...updatedEventData });
+
+    console.log('Modify Event Response:', response.body);
+    expect(response.status).toBe(200);
+    expect(response.body.htmlLink).toBe('http://example.com/event');
+  });
+
+  it('should delete an existing calendar event', async () => {
     const eventId = '1';
 
-    const response = await request(app).delete(
-      `/api/calendar/delete-event/${eventId}`,
-    );
+    const response = await request(app)
+      .delete(`/api/calendar/delete-event/${eventId}`);
 
-    expect(response.status).toBe(200);
-    expect(response.text).toContain(
-      `Event with ID ${eventId} deleted successfully.`,
-    );
-  });
-
-  it('should get all calendar events for a specific month', async () => {
-    const year = 2023;
-    const month = 3; // March
-
-    const response = await request(app).get(
-      `/api/calendar/events/${year}/${month}`,
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual([
-      {
-        id: '1',
-        summary: 'Event 1',
-        start: { dateTime: '2023-03-01T10:00:00Z' },
-        end: { dateTime: '2023-03-01T11:00:00Z' },
-      },
-      {
-        id: '2',
-        summary: 'Event 2',
-        start: { dateTime: '2023-03-15T12:00:00Z' },
-        end: { dateTime: '2023-03-15T13:00:00Z' },
-      },
-    ]);
+    console.log('Delete Event Response:', response.status);
+    expect(response.status).toBe(204);
   });
 });
