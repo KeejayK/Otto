@@ -9,9 +9,11 @@ describe('buildPrompt', () => {
 
   it('includes expected JSON keys', () => {
     const prompt = buildPrompt('Create event');
-    expect(prompt).toContain('"title"');
-    expect(prompt).toContain('"start"');
-    expect(prompt).toContain('"end"');
+    expect(prompt).toContain('- title: string');
+    expect(prompt).toContain('- location: string');
+    expect(prompt).toContain('- description: string');
+    expect(prompt).toContain('- start: string (ISO 8601 format');
+    expect(prompt).toContain('- end: string (ISO 8601 format');
     expect(prompt).toContain('Respond only with a valid JSON object');
   });
 });

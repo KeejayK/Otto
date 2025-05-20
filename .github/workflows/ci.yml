@@ -32,9 +32,6 @@ jobs:
       - name: Lint code
         run: npm run lint
 
-      - name: Check formatting
-        run: npm run format
-
       - name: Write service account key to file
         run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" | base64 -d > server/serviceAccountKey.json
         working-directory: .

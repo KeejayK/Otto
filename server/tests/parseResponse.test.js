@@ -25,7 +25,7 @@ describe('parseGPTResponse', () => {
   test('throws an error for invalid JSON', () => {
     const malformedOutput = `This is not JSON at all!`;
     expect(() => parseGPTResponse(malformedOutput)).toThrow(
-      'Invalid GPT response format',
+      'Invalid GPT response format'
     );
   });
 
@@ -36,7 +36,23 @@ describe('parseGPTResponse', () => {
       }
     `;
     expect(() => parseGPTResponse(incompleteOutput)).toThrow(
-      'Missing required event fields',
+      'Invalid GPT response format'
     );
+  });
+
+  test('defaults optional fields when missing', () => {
+    const gptOutput = `
+      {
+        "title": "Event Without Optional Fields",
+        "start": "2025-06-01T09:00",
+        "end": "2025-06-01T10:00"
+      }
+    `;
+    const result = parseGPTResponse(gptOutput);
+    expect(result.title).toBe('Event Without Optional Fields');
+    expect(result.start).toBe('2025-06-01T09:00');
+    expect(result.end).toBe('2025-06-01T10:00');
+    expect(result.location).toBe('');
+    expect(result.description).toBe('');
   });
 });
