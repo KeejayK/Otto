@@ -31,22 +31,18 @@ api.interceptors.response.use(
 
 // Calendar API
 export const calendarApi = {
-  getEvents: async () => {
-    const res = await api.get('/calendar/events');
-    return res.data;
-  },
   createEvent: async (event) => {
     const res = await api.post('/calendar/add-event', event);
     return res.data;      // { htmlLink: '…' }
   },
   updateEvent: async (eventId, event) => {
-    const res = await api.put(`/calendar/events/${eventId}`, event);
+    const res = await api.put(`/calendar/modify-event`, event);
     return res.data;
   },
   deleteEvent: async (eventId) => {
     const res = await api.delete(`/calendar/delete-event/${eventId}`);
     return res.data;
-  },
+  }
 };
 
 // Chat API
