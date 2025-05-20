@@ -26,14 +26,14 @@ api.interceptors.response.use(
       window.location.href = '/login';
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // Calendar API
 export const calendarApi = {
   createEvent: async (event) => {
     const res = await api.post('/calendar/add-event', event);
-    return res.data;      // { htmlLink: '…' }
+    return res.data; // { htmlLink: '…' }
   },
   updateEvent: async (eventId, event) => {
     const res = await api.put(`/calendar/modify-event`, event);
@@ -53,11 +53,11 @@ export const calendarApi = {
 export const chatApi = {
   getHistory: async () => {
     const res = await api.get('/chat/history');
-    return res.data;      // array of { id, message, role, timestamp }
+    return res.data; // array of { id, message, role, timestamp }
   },
   sendMessage: async (message) => {
     const res = await api.post('/chat', { message });
-    return { data: res.data };      // { message: 'Event created', calendarLink: '…', type }
+    return { data: res.data }; // { message: 'Event created', calendarLink: '…', type }
   },
 };
 
