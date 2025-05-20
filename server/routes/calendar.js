@@ -233,67 +233,75 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
 });
 
 // DELETE /api/calendar/delete-event/:eventId
-router.delete('/delete-event/:eventId', verifyFirebaseToken, async (req, res) => {
-  console.log(`DELETE /api/calendar/delete-event/${req.params.eventId}`);
-  const uid = req.user.uid;
-  const { eventId } = req.params;
+router.delete(
+  '/delete-event/:eventId',
+  verifyFirebaseToken,
+  async (req, res) => {
+    console.log(`DELETE /api/calendar/delete-event/${req.params.eventId}`);
+    const uid = req.user.uid;
+    const { eventId } = req.params;
 
-  try {
-    // Retrieve stored Google credentials
-    console.log('Retrieving google creds');
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    const googleCreds = userDoc.data().google;
-    if (!googleCreds?.accessToken) {
-      return res.status(400).json({ error: 'Missing Google access token' });
-    }
-
-    console.log('Initializing Oauth2 Client');
-    // Initialize OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
-
-    // Set credentials (include refresh token if stored)
-    console.log('Setting credentials');
-    const tokens = { access_token: googleCreds.accessToken };
-    if (googleCreds.refreshToken) {
-      tokens.refresh_token = googleCreds.refreshToken;
-    }
-    oauth2Client.setCredentials(tokens);
-
-    console.log('Initializing calendar');
-
-    // Initialize Calendar API with auth
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-
-    // Retrieve the event to check if it exists
     try {
-      await calendar.events.get({
+      // Retrieve stored Google credentials
+      console.log('Retrieving google creds');
+      const userDoc = await admin
+        .firestore()
+        .collection('users')
+        .doc(uid)
+        .get();
+      const googleCreds = userDoc.data().google;
+      if (!googleCreds?.accessToken) {
+        return res.status(400).json({ error: 'Missing Google access token' });
+      }
+
+      console.log('Initializing Oauth2 Client');
+      // Initialize OAuth2 client
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+      );
+
+      // Set credentials (include refresh token if stored)
+      console.log('Setting credentials');
+      const tokens = { access_token: googleCreds.accessToken };
+      if (googleCreds.refreshToken) {
+        tokens.refresh_token = googleCreds.refreshToken;
+      }
+      oauth2Client.setCredentials(tokens);
+
+      console.log('Initializing calendar');
+
+      // Initialize Calendar API with auth
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+      // Retrieve the event to check if it exists
+      try {
+        await calendar.events.get({
+          calendarId: 'primary',
+          eventId: eventId,
+        });
+      } catch (error) {
+        if (error.code === 404) {
+          return res.status(404).json({ error: 'Event not found' });
+        }
+        throw error; // Re-throw other errors
+      }
+
+      // Delete the event
+      await calendar.events.delete({
         calendarId: 'primary',
         eventId: eventId,
       });
+
+      console.log('Event deleted');
+
+      // Return success response
+      return res.status(204).send();
     } catch (error) {
-      if (error.code === 404) {
-        return res.status(404).json({ error: 'Event not found' });
-      }
-      throw error; // Re-throw other errors
+      console.error('Error deleting event:', error);
+      return res.status(500).json({ error: 'Failed to delete calendar event' });
     }
-
-    // Delete the event
-    await calendar.events.delete({
-      calendarId: 'primary',
-      eventId: eventId,
-    });
-
-    console.log('Event deleted');
-
-    // Return success response
-    return res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting event:', error);
-    return res.status(500).json({ error: 'Failed to delete calendar event' });
-  }
-});
+  },
+);
 
 module.exports = router;

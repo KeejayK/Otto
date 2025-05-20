@@ -55,24 +55,28 @@ jest.mock('googleapis', () => {
 });
 
 // Mock the verifyFirebaseToken middleware
-jest.mock('../middleware/auth', () => jest.fn((req, res, next) => {
-  req.user = { uid: 'test-user-id' };
-  next();
-}));
+jest.mock('../middleware/auth', () =>
+  jest.fn((req, res, next) => {
+    req.user = { uid: 'test-user-id' };
+    next();
+  }),
+);
 
 // Mock Firestore to return user data with Google credentials
 jest.mock('../firebase', () => {
   const firestore = jest.fn(() => ({
     collection: jest.fn(() => ({
       doc: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({
-          data: () => ({
-            google: {
-              accessToken: 'mock-access-token',
-              refreshToken: 'mock-refresh-token',
-            },
+        get: jest.fn(() =>
+          Promise.resolve({
+            data: () => ({
+              google: {
+                accessToken: 'mock-access-token',
+                refreshToken: 'mock-refresh-token',
+              },
+            }),
           }),
-        })),
+        ),
       })),
     })),
   }));
@@ -124,8 +128,9 @@ describe('Calendar API', () => {
   it('should delete an existing calendar event', async () => {
     const eventId = '1';
 
-    const response = await request(app)
-      .delete(`/api/calendar/delete-event/${eventId}`);
+    const response = await request(app).delete(
+      `/api/calendar/delete-event/${eventId}`,
+    );
 
     console.log('Delete Event Response:', response.status);
     expect(response.status).toBe(204);
