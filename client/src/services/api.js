@@ -36,7 +36,7 @@ export const calendarApi = {
     return res.data; // { htmlLink: '…' }
   },
   updateEvent: async (eventId, event) => {
-    const res = await api.put(`/calendar/modify-event`, event);
+    const res = await api.put(`/calendar/modify-event`, { eventId, ...event });
     return res.data;
   },
   deleteEvent: async (eventId) => {
