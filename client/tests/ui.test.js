@@ -11,7 +11,7 @@ describe('HomeView.vue UI Existence Test', () => {
   beforeEach(() => {
     root = document.createElement('div');
     document.body.appendChild(root);
-  });
+  }); 
 
   afterEach(() => {
     document.body.innerHTML = '';
