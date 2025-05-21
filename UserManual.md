@@ -1,7 +1,7 @@
 # otto User Manual
 
 ## 📘 Overview
-Otto is an intelligent calendar assistant designed for students. It allows users to manage their academic schedules effortlessly using natural language. Users can create events by typing or speaking casually, extract important dates from syllabi, or upload photos of class schedules. All data is synced to Google Calendar to centralize time management in one place.
+Otto is an intelligent calendar assistant designed for students. It allows users to manage their academic schedules effortlessly using natural language. Users can create events by typing casually into the chat interface. All data is synced to Google Calendar to centralize time management in one place.
 
 **Why use Otto?**
 - Simplify calendar management with natural language input
@@ -51,15 +51,7 @@ Place your Firebase service account credentials in `/server/serviceAccountKey.js
 
 ## 🚀 Running the Software
 
-### Backend
 ```bash
-cd server
-npm start
-```
-
-### Frontend
-```bash
-cd client
 npm run dev
 ```
 
@@ -72,7 +64,10 @@ Use the text input field to type in plain English, e.g.,
 ### 2. Editing Events (WIP)
 You'll soon be able to modify events through a conversational interface. (Work in progress)
 
-### 3. Sync to Google Calendar
+### 3. Removing Events (WIP)
+The ability to remove events through the chat is under development as well. (Work in progress)
+
+### 4. Sync to Google Calendar
 Events created in Otto are pushed to your connected Google Calendar.
 
 ## 🐛 Reporting a Bug
@@ -87,8 +82,8 @@ Please submit all bug reports via our [GitHub Issue Tracker](https://github.com/
 You can use [this guide](https://github.com/OpenSC/OpenSC/wiki/How-to-write-a-good-bug-report) for tips on how to write a good bug report.
 
 ## ⚠️ Known Bugs & Limitations
-- Photo timetable parsing is under development
-- Conversational event editing is not yet implemented
+- Chat feature is inconsistent
+- Editing an removing events are still under development
 
 All known issues are tracked [here](https://github.com/KeejayK/otto/issues).
 
