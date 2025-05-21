@@ -11,7 +11,7 @@ Otto is an intelligent calendar assistant built for students. Speak naturally to
 - **Simplify academic scheduling** by creating a streamlined solution that understands how students actually work.
 - **Redefine** how students manage their academic schedules with a conversational interface purpose-built for college life.
 
-### We'll achieve these goals by:
+### We'll achieve these goals by: 
 
 - Utilizing natural language processing to simplify calendar management
 - Automate the extraction of critical dates from syllabi
