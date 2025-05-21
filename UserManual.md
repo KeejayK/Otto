@@ -64,7 +64,10 @@ Use the text input field to type in plain English, e.g.,
 ### 2. Editing Events (WIP)
 You'll soon be able to modify events through a conversational interface. (Work in progress)
 
-### 3. Sync to Google Calendar
+### 3. Removing Events (WIP)
+The ability to remove events through the chat is under development as well. (Work in progress)
+
+### 4. Sync to Google Calendar
 Events created in Otto are pushed to your connected Google Calendar.
 
 ## 🐛 Reporting a Bug
