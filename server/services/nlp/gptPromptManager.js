@@ -26,7 +26,7 @@ function updatePrompt(userInput, events) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   const listText = events.length
     ? events
-        .map(e => `${e.id}: ${e.summary} from ${e.start} to ${e.end}`)
+        .map(e => `${e.id}: ${e.summary} from ${e.start.dateTime} to ${e.end.dateTime}`)
         .join('\n')
     : 'You have no upcoming events.';
 
@@ -58,7 +58,7 @@ function deletePrompt(userInput, events) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   const listText = events.length
     ? events
-        .map(e => `${e.id}: ${e.summary} from ${e.start} to ${e.end}`)
+        .map(e => `${e.id}: ${e.summary} from ${e.start.dateTime} to ${e.end.dateTime}`)
         .join('\n')
     : 'You have no upcoming events.';
 

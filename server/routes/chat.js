@@ -97,7 +97,6 @@ router.post('/', async (req, res) => {
         
         const events = listRes.data;
 
-        console.log(`events`, events)
 
         // pass existing events into prompt
 
