@@ -1,12 +1,10 @@
-function buildPrompt(userInput) {
-  const today = new Date().toLocaleDateString('en-CA', {
-    timeZone: 'America/Los_Angeles',
-  });
+function createPrompt(userInput) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   console.log(`today's date is: ${today}`);
   return `
   You are an assistant that extracts event details for a Google Calendar from natural language input.
 
-  Assume that today is ${today}
+  Assume today is ${today}
   
   Given the message below, return a JSON object with the following fields:
   - title: string
@@ -24,4 +22,57 @@ function buildPrompt(userInput) {
   `;
 }
 
-module.exports = { buildPrompt };
+function updatePrompt(userInput, events) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  const listText = events.length
+    ? events.map((e,i) => `${i+1}. ${e.summary} @ ${e.start.dateTime || e.start.date}`)
+            .join('\n')
+    : 'You have no upcoming events.';
+
+  return `
+  You are an assistant that helps modify existing Google Calendar events.
+  Assume today is ${today}.
+
+  Here are the next ${events.length} events:
+  ${listText}
+
+  Given the message below, identity which (if any) event to update and output a JSON object representing the updated event with these properties:
+  - eventId: string
+  - title: string
+  - location: string
+  - description: string
+  - start: string (ISO 8601 datetime)
+  - end: string (ISO 8601 datetime)
+
+  Message: "${userInput}"
+
+  If the event the message references doesn't appear to exist, please return None for eventId.
+
+  Respond only with a valid JSON object.`;
+}
+
+function deletePrompt(userInput, events) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  const listText = events.length
+    ? events.map((e,i) => `${i+1}. ${e.summary} @ ${e.start.dateTime || e.start.date}`)
+            .join('\n')
+    : 'You have no upcoming events.';
+
+  return `
+  You are an assistant that helps delete Google Calendar events.
+  Assume today is ${today}.
+
+  Here are the next ${events.length} events:
+  ${listText}
+
+  Given the message below, identify the event (if any) to remove and return a JSON object with:
+  - eventId: string
+
+  Message: "${userInput}"
+
+  If the event the message references doesn't appear to exist, please return "None" for eventId.
+
+  Respond only with a valid JSON object.`;
+}
+
+module.exports = { createPrompt, updatePrompt, deletePrompt };

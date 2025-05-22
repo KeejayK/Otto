@@ -148,7 +148,7 @@ const sendMessage = async () => {
     });
 
     // once event is pushed, refresh calendar iframe
-    if (response.data.type == 'event') {
+    if (['create', 'update', 'delete'].includes(response.data.type)) {
       iframeKey.value += 1;
       await nextTick();
     }
