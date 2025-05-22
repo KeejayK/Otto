@@ -70,7 +70,7 @@ router.post('/', async (req, res) => {
         const { eventId, title, location, description, start, end } = JSON.parse(gptOutput);
 
         if (eventId == "None") {
-          replyMessage = "Event doesn't exist.";
+          replyMessage = "Event not found.";
           break;
         }
 
@@ -112,7 +112,7 @@ router.post('/', async (req, res) => {
         console.log(`gptOutput: ${gptOutput}`)
         const { eventId } = JSON.parse(gptOutput);
         if (eventId == "None") {
-          replyMessage = "Event doesn't exist.";
+          replyMessage = "Event not found.";
           break;
         }
 
