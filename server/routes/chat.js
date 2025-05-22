@@ -95,10 +95,9 @@ router.post('/', async (req, res) => {
           { headers: { Authorization: req.headers.authorization } }
         );
         
-        console.log(listRes)
         const events = listRes.data;
 
-        console.log(`events: ${events}`)
+        console.log(`events`, events)
 
         // pass existing events into prompt
 
