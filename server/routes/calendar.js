@@ -197,7 +197,7 @@ router.delete(
       console.log('Event deleted');
 
       // Return success response
-      return res.status(204).send();
+      return res.json({ success: true, eventId });
     } catch (error) {
       console.error('Error deleting event:', error);
       return res.status(500).json({ error: 'Failed to delete calendar event' });

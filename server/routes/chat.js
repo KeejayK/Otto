@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { OpenAI } = require('openai');
-
-const { buildPrompt } = require('../services/nlp/gptPromptManager');
-const { parseGPTResponse } = require('../services/nlp/parseResponse');
 const { classifyIntent } = require('../services/nlp/classifyIntent');
+const  { createPrompt, updatePrompt, deletePrompt } = require('../services/nlp/gptPromptManager');
+const { parseGPTResponse } = require('../services/nlp/parseResponse');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -28,88 +27,143 @@ router.post('/', async (req, res) => {
   console.log(`Received message: ${userMessage}`);
 
   try {
-    // Determine message intent
-
     const intent = await classifyIntent(userMessage);
     console.log(`Intent classified as: ${intent}`);
 
-    // Handle based on intent
-    if (intent === 'query') {
-      // TODO: Implement query handling
-      return res.status(200).json({
-        message: 'I can help you find that information...',
-        type: 'query',
-      });
+    let replyMessage;
+    let type = intent;
+    let calendarLink;
+
+    switch (intent) {
+      case 'list': {
+        // List existing events
+        const listRes = await axios.get(
+          'http://localhost:3000/api/calendar/list-events',
+          { headers: { Authorization: req.headers.authorization } }
+        );
+        const events = listRes.data;
+        if (events.length === 0) {
+          replyMessage = 'You have no upcoming events.';
+        } else {
+          replyMessage = 'Here are your upcoming events:\n' +
+            events.map(e => `- ${e.summary} at ${e.start.dateTime || e.start.date}`).join('\n');
+        }
+        break;
+      }
+
+      case 'update': {
+
+        // grab existing list of events
+        const listRes = await axios.get(
+          'http://localhost:3000/api/calendar/list-events',
+          { headers: { Authorization: req.headers.authorization } }
+        );
+        const events = listRes.data;
+
+        // pass existing events into prompt
+        const prompt = updatePrompt(userMessage, events);
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: prompt }],
+        });
+        const gptOutput = completion.choices[0].message.content;
+        const { eventId, title, location, description, start, end } = JSON.parse(gptOutput);
+
+        if (eventId == "None") {
+          replyMessage = "Event doesn't exist.";
+          break;
+        }
+
+        // Call API to update
+        const updateRes = await axios.put(
+          'http://localhost:3000/api/calendar/modify-event',
+          { eventId, summary: title, location, description, start, end },
+          { headers: { Authorization: req.headers.authorization } }
+        );
+        calendarLink = updateRes.data.htmlLink;
+        replyMessage = `Event updated!`;
+        break;
+      }
+
+      case 'delete': {
+        // grab existing list of events
+
+        console.log('grabbing list of events...')
+
+        const listRes = await axios.get(
+          'http://localhost:3000/api/calendar/list-events',
+          { headers: { Authorization: req.headers.authorization } }
+        );
+        
+        const events = listRes.data;
+
+        console.log(`events`, events)
+
+        // pass existing events into prompt
+
+        console.log(`asking gpt...`)
+
+        const prompt = deletePrompt(userMessage, events);
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: prompt }],
+        });
+        const gptOutput = completion.choices[0].message.content;
+
+        console.log(`gptOutput: ${gptOutput}`)
+        const { eventId } = JSON.parse(gptOutput);
+        if (eventId == "None") {
+          replyMessage = "Event doesn't exist.";
+          break;
+        }
+
+        // Call API to delete
+        await axios.delete(
+          `http://localhost:3000/api/calendar/delete-event/${eventId}`,
+          { headers: { Authorization: req.headers.authorization } }
+        );
+        replyMessage = 'Event deleted successfully.';
+        break;
+      }
+
+      case 'create':
+      default: {
+        // Build create prompt and parse
+        const prompt = createPrompt(userMessage);
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: prompt }],
+        });
+        const gptOutput = completion.choices[0].message.content;
+        const parsedEvent = parseGPTResponse(gptOutput);
+
+        // Forward event to API
+        const calendarRes = await axios.post(
+          'http://localhost:3000/api/calendar/add-event',
+          {
+            summary: parsedEvent.title,
+            location: parsedEvent.location,
+            description: parsedEvent.description,
+            start: parsedEvent.start,
+            end: parsedEvent.end,
+          },
+          { headers: { Authorization: req.headers.authorization } }
+        );
+        calendarLink = calendarRes.data.htmlLink;
+        replyMessage = `Event created!`;
+        break;
+      }
     }
 
-    // Step 1: Build GPT prompt
-    const prompt = buildPrompt(userMessage);
+    // Store in chat history
+    chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+    chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
 
-    console.log(`Sending prompt to GPT`);
-
-    // Step 2: Send prompt to GPT-3.5 Turbo
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const gptOutput = completion.choices[0].message.content;
-
-    console.log(`GPT OUTPUT ${gptOutput}`);
-
-    // Step 3: Parse GPT's output into event object
-    const parsedEvent = parseGPTResponse(gptOutput);
-
-    // Step 4: Forward event to calendar creation route
-
-    console.log('Forwarding to /calendar/add-event');
-
-    const calendarResponse = await axios.post(
-      'http://localhost:3000/api/calendar/add-event',
-      {
-        summary: parsedEvent.title,
-        location: parsedEvent.location,
-        description: parsedEvent.description || '',
-        start: parsedEvent.start,
-        end: parsedEvent.end,
-      },
-      {
-        headers: {
-          Authorization: req.headers.authorization,
-        },
-      },
-    );
-
-    // Step 5: Store in chat history
-
-    console.log('Storing message in chat history');
-    chatHistory.push({
-      id: Date.now().toString(),
-      message: userMessage,
-      role: 'user',
-      timestamp: new Date(),
-    });
-
-    console.log('Storing event in chat history');
-
-    chatHistory.push({
-      id: (Date.now() + 1).toString(),
-      message: `Event created! View it here: ${calendarResponse.data}`,
-      role: 'assistant',
-      timestamp: new Date(),
-    });
-
-    return res.status(200).json({
-      message: 'Event created',
-      calendarLink: calendarResponse.data,
-      type: 'event',
-    });
+    // Return response
+    return res.status(200).json({ message: replyMessage, type, calendarLink });
   } catch (err) {
-    console.error('Error in chat route:', err.message);
-    return res.status(500).json({
-      error: 'Something went wrong',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined,
-    });
+    console.error('Error in chat route:', err);
+    return res.status(500).json({ error: 'Something went wrong', details: err.message });
   }
 });
 

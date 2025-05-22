@@ -35,6 +35,7 @@
     "mongoose": "^8.14.1",
     "openai": "^4.98.0",
     "pinia": "^3.0.2",
+    "tree": "^0.1.3",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
