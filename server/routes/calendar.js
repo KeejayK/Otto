@@ -89,7 +89,6 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
   try {
     const calendar = await initializeGoogleCalendar(uid);
 
-    // Retrieve the event to check if it exists
     try {
       await calendar.events.get({
         calendarId: 'primary',
@@ -99,7 +98,7 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
       if (error.code === 404) {
         return res.status(404).json({ error: 'Event not found' });
       }
-      throw error; // Re-throw other errors
+      throw error;
     }
 
     console.log('Updating event');
@@ -213,9 +212,14 @@ router.get('/list-events', verifyFirebaseToken, async (req, res) => {
   try {
     const calendar = await initializeGoogleCalendar(uid);
 
+    const now = (new Date()).toISOString();
+
     const response = await calendar.events.list({
       calendarId: 'primary',
-      maxResults: 1,
+      timeMin: now,
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 10,
     });
 
     return res.json(response.data.items);
