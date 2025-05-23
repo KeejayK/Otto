@@ -25,9 +25,12 @@ function createPrompt(userInput) {
 function updatePrompt(userInput, events) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   const listText = events.length
-    ? events.map((e,i) => `${i+1}. ${e.summary} @ ${e.start.dateTime || e.start.date}`)
-            .join('\n')
+    ? events
+        .map(e => `${e.id}: ${e.summary} from ${e.start.dateTime} to ${e.end.dateTime}`)
+        .join('\n')
     : 'You have no upcoming events.';
+
+  console.log(`Events to be considered: ${listText}`)
 
   return `
   You are an assistant that helps modify existing Google Calendar events.
@@ -54,9 +57,13 @@ function updatePrompt(userInput, events) {
 function deletePrompt(userInput, events) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   const listText = events.length
-    ? events.map((e,i) => `${i+1}. ${e.summary} @ ${e.start.dateTime || e.start.date}`)
-            .join('\n')
+    ? events
+        .map(e => `${e.id}: ${e.summary} from ${e.start.dateTime} to ${e.end.dateTime}`)
+        .join('\n')
     : 'You have no upcoming events.';
+
+  console.log(`Events to be considered: ${listText}`)
+
 
   return `
   You are an assistant that helps delete Google Calendar events.

@@ -18,21 +18,21 @@
           Events this week
         </button>
 
-        <button class="action-btn" @click="handleQuickAction('Add new class')">
-          <div class="action-icon">🎓</div>
-          Add new class
-        </button>
-
         <button class="action-btn" @click="handleQuickAction('Add new event')">
           <div class="action-icon">📌</div>
           Add new event
         </button>
 
+        <button class="action-btn" @click="handleQuickAction('Add new class')">
+          <div class="action-icon">🔁</div>
+          Add recurring event
+        </button>
+        
         <button
           class="action-btn"
           @click="handleQuickAction('Change current event')"
         >
-          <div class="action-icon">🔄</div>
+          <div class="action-icon">✏️</div>
           Change current event
         </button>
       </div>
@@ -174,6 +174,37 @@ const handleQuickAction = (action) => {
   userMessage.value = action;
   sendMessage();
   isQuickActionsOpen.value = false;
+
+  if (action === 'Add new class') {
+    chatMessages.value.push({
+      role: 'assistant',
+      content: [
+        "You can add a new event by saying:",
+        `"Add a class called [Course Name] on [Days of week] from [start time] to [end time] in [location]"`,
+        "For example:",
+        `"Add CSE 446 on Mondays and Wednesdays from 9am to 10am in Kane Hall."`,
+        `"or"`,
+        `"Add a 2 hour Zoom meeting later todat at 4pm."`
+      ].join('\n')
+    });
+    scrollToBottom();
+  } else if(action === 'Change current event') {
+    chatMessages.value.push({
+      role: 'assistant',
+      content: [
+        "You can modify an existing event by saying:",
+        `"Change the [Event Name] from [Original Date/Time] to [New Date/Time]"`,
+        "For example:",
+        `"Change the team meeting from June 5th at 3pm to June 6th at 4pm."`,
+        `"or"`,
+        `"The dinner I have tonight at 7pm has been moved to tomorrow night"`
+      ].join('\n')
+    });
+  }
+    else {
+    userMessage.value = action;
+    sendMessage();
+  }
 };
 
 // Open file upload dialog
