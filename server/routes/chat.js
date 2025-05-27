@@ -32,6 +32,9 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
   const userMessage = req.body.message;
   const authHeader = req.headers.authorization;
   const sessionId = req.user?.uid || req.headers['x-user-id'] || 'default';
+  
+  // Define required fields for event creation
+  const requiredFields = ['title', 'start', 'end'];
 
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided' });
@@ -332,7 +335,19 @@ case 'update': {
             location: event?.location || '',
           }
         };
-        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${event?.start?.dateTime || event?.start?.date || ''} - ${event?.end?.dateTime || event?.end?.date || ''}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
+        
+        // Format dates for readability
+        const startDate = new Date(event?.start?.dateTime || event?.start?.date || '');
+        const endDate = new Date(event?.end?.dateTime || event?.end?.date || '');
+        const formattedStart = startDate.toLocaleString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric', 
+          hour: 'numeric', minute: 'numeric'
+        });
+        const formattedEnd = endDate.toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: 'numeric'
+        });
+        
+        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
