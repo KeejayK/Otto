@@ -10,20 +10,48 @@ const api = axios.create({
 });
 
 // Automatically attach the Firebase ID token on every request
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const authStore = useAuthStore();
+
+  // Debug logs for Google sign-in issues
+  console.log('[API] isAuthenticated:', authStore.isAuthenticated);
+  console.log('[API] idToken:', authStore.idToken ? '[present]' : '[missing]');
+
+  // If there's a valid ID token, use it
   if (authStore.idToken) {
     config.headers.Authorization = `Bearer ${authStore.idToken}`;
+  } else if (authStore.isAuthenticated) {
+    // If authenticated but no token, try to refresh it
+    try {
+      await authStore.refreshToken();
+      console.log('[API] Token refreshed:', authStore.idToken ? '[present]' : '[still missing]');
+      if (authStore.idToken) {
+        config.headers.Authorization = `Bearer ${authStore.idToken}`;
+      } else {
+        console.warn('[API] Authenticated but no idToken after refresh.');
+      }
+    } catch (err) {
+      console.error('Error refreshing token:', err);
+    }
+  } else {
+    console.warn('[API] Not authenticated, no token attached.');
   }
+
   return config;
 });
 
-// Redirect to login on 401
+// Handle errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      window.location.href = '/login';
+      const authStore = useAuthStore();
+      // If we're getting 401s and we think we're logged in, log out
+      console.warn('[API] 401 Unauthorized. isAuthenticated:', authStore.isAuthenticated);
+      if (authStore.isAuthenticated) {
+        authStore.logout();
+        console.log('Session expired. Please sign in again.');
+      }
     }
     return Promise.reject(error);
   },
@@ -55,9 +83,26 @@ export const chatApi = {
     const res = await api.get('/chat/history');
     return res.data; // array of { id, message, role, timestamp }
   },
+  clearHistory: async () => {
+    const res = await api.delete('/chat/history');
+    return res.data; // { message: 'Chat history cleared successfully' }
+  },
   sendMessage: async (message) => {
-    const res = await api.post('/chat', { message });
-    return { data: res.data }; // { message: 'Event created', calendarLink: '…', type }
+    try {
+      const res = await api.post('/chat', { message });
+      return { data: res.data }; // { message: 'Event created', calendarLink: '…', type }
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      if (error.response?.status === 401) {
+        return {
+          data: {
+            message: 'You need to sign in to perform this action.',
+            type: 'auth_required'
+          }
+        };
+      }
+      throw error;
+    }
   },
 };
 

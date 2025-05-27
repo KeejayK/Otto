@@ -3,13 +3,21 @@
     <div class="chat-panel">
       <div class="panel-header">
         <h2 class="panel-title">otto</h2>
-        <div class="quick-actions-toggle" @click="toggleQuickActions">
-          <span>Quick Actions</span>
-          <span class="toggle-icon">{{ isQuickActionsOpen ? '▲' : '▼' }}</span>
+        <div class="panel-actions">
+          <button class="clear-history-btn" :disabled="isClearing" @click="clearChatHistory">
+            {{ isClearing ? 'Clearing...' : 'Clear History' }}
+          </button>
+          <div v-if="!authStore.isAuthenticated" class="auth-status">
+            <button class="signin-button" @click="navigateToLogin">Sign In</button>
+          </div>
+          <div v-else class="quick-actions-toggle" @click="toggleQuickActions">
+            <span>Quick Actions</span>
+            <span class="toggle-icon">{{ isQuickActionsOpen ? '▲' : '▼' }}</span>
+          </div>
         </div>
       </div>
 
-      <div class="quick-actions-menu" v-if="isQuickActionsOpen">
+      <div v-if="isQuickActionsOpen" class="quick-actions-menu">
         <button
           class="action-btn"
           @click="handleQuickAction('See events this week')"
@@ -25,9 +33,9 @@
 
         <button class="action-btn" @click="handleQuickAction('Add new class')">
           <div class="action-icon">🔁</div>
-          Add recurring event
+          Add new class
         </button>
-        
+
         <button
           class="action-btn"
           @click="handleQuickAction('Change current event')"
@@ -37,7 +45,7 @@
         </button>
       </div>
 
-      <div class="chat-history" ref="chatHistoryRef">
+      <div ref="chatHistoryRef" class="chat-history">
         <div
           v-for="(message, index) in chatMessages"
           :key="index"
@@ -50,36 +58,40 @@
                 : 'bot-message',
           ]"
         >
-          {{ message.content }}
+          <template v-if="message.role === 'assistant'">
+            <VueMarkdownIt :source="message.content" />
+          </template>
+          <template v-else>
+            {{ message.content }}
+          </template>
+        </div>
+        <div v-if="isLoading" class="chat-message bot-message thinking">
+          <span class="dot-animation"></span>
         </div>
       </div>
-
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
           <input
-            type="text"
             v-model="userMessage"
-            @keydown.enter="sendMessage"
+            type="text"
             placeholder="Message Otto"
             class="chat-input"
-          />
-          <button @click="openFileUpload" class="upload-button">
-            <span class="icon-clip">📎</span>
-          </button>
-          <input
-            ref="fileInput"
-            type="file"
-            @change="handleFileUpload"
-            accept="image/*,.pdf"
-            style="display: none"
+            :disabled="isLoading"
+            @keydown.enter="sendMessage"
           />
         </div>
-        <button @click="sendMessage" class="send-button">Send</button>
+        <button class="send-button" :disabled="isLoading" @click="sendMessage">
+          {{ isLoading ? 'Sending...' : 'Send' }}
+        </button>
       </div>
     </div>
 
     <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
-      <p>Please sign in to view your calendar</p>
+      <div class="auth-prompt">
+        <h3>Please sign in to access your calendar</h3>
+        <p>Sign in with your Google account to view and manage your calendar events.</p>
+        <button class="signin-button-large" @click="navigateToLogin">Sign In with Google</button>
+      </div>
     </div>
     <div v-else-if="calendarUrl" class="calendar-wrapper">
       <iframe
@@ -97,36 +109,44 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { chatApi } from '@/services/api'; // Import the existing chatApi
+import { useRouter } from 'vue-router';
+import VueMarkdownIt from 'vue3-markdown-it';
 
+
+const router = useRouter();
 const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
 const userMessage = ref('');
 const chatMessages = ref([]);
-const fileInput = ref(null);
-const selectedFile = ref(null);
 const isQuickActionsOpen = ref(false);
 const iframeKey = ref(0);
+const isLoading = ref(false);
+const isClearing = ref(false);
 
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
   if (!authStore.user?.email) return null;
 
   const encodedEmail = encodeURIComponent(authStore.user.email);
-
-  // TODO: user should be able to change timezones
-  // return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
+  
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
+// Redirect to login page
+const navigateToLogin = () => {
+  router.push('/login');
+};
+
 // Send message function
 const sendMessage = async () => {
-  if (!userMessage.value.trim()) return;
+  if (!userMessage.value.trim() || isLoading.value) return;
 
   const messageText = userMessage.value;
   userMessage.value = '';
+  isLoading.value = true;
 
   // Add user message to chat
   chatMessages.value.push({
@@ -134,23 +154,36 @@ const sendMessage = async () => {
     content: messageText,
   });
 
+  // Scroll as soon as user sends a message
+  await scrollToBottom();
+
   try {
-    // Use the imported chatApi
-
-    // TODO: assistant should be able to clarify details like location
     const response = await chatApi.sendMessage(messageText);
-    console.log('Response from chatApi:');
-    console.log(response);
+    console.log('Response from chatApi:', response);
 
-    chatMessages.value.push({
-      role: 'assistant',
-      content: response.data.message,
-    });
+    // Handle authentication requirements
+    if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.data.message + " Would you like to sign in now?",
+      });
+      
+      // Add sign-in prompt as system message
+      chatMessages.value.push({
+        role: 'system',
+        content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
+      });
+    } else {
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.data.message,
+      });
 
-    // once event is pushed, refresh calendar iframe
-    if (['create', 'update', 'delete'].includes(response.data.type)) {
-      iframeKey.value += 1;
-      await nextTick();
+      // once event is pushed, refresh calendar iframe
+      if (['create', 'update', 'delete'].includes(response.data.type)) {
+        iframeKey.value += 1;
+        await nextTick();
+      }
     }
   } catch (error) {
     console.error('Error sending message:', error);
@@ -158,12 +191,12 @@ const sendMessage = async () => {
       role: 'system',
       content: 'Sorry, I encountered an error. Please try again.',
     });
+  } finally {
+    isLoading.value = false;
+    scrollToBottom();
   }
-
-  scrollToBottom();
 };
 
-// Rest of your existing functions...
 // Toggle quick actions menu
 const toggleQuickActions = () => {
   isQuickActionsOpen.value = !isQuickActionsOpen.value;
@@ -201,58 +234,9 @@ const handleQuickAction = (action) => {
       ].join('\n')
     });
   }
-    else {
+  else {
     userMessage.value = action;
     sendMessage();
-  }
-};
-
-// Open file upload dialog
-const openFileUpload = () => {
-  fileInput.value.click();
-};
-
-// Handle file selection
-const handleFileUpload = (event) => {
-  selectedFile.value = event.target.files[0];
-  if (selectedFile.value) {
-    chatMessages.value.push({
-      role: 'user',
-      content: `Selected file: ${selectedFile.value.name}`,
-    });
-    uploadFile();
-    scrollToBottom();
-  }
-};
-
-// Upload file
-const uploadFile = async () => {
-  if (!selectedFile.value) return;
-
-  try {
-    chatMessages.value.push({
-      role: 'system',
-      content: `Uploading ${selectedFile.value.name}...`,
-    });
-
-    // Simulate a response
-    setTimeout(() => {
-      chatMessages.value.push({
-        role: 'assistant',
-        content: `I've analyzed your ${selectedFile.value.name}. I found several important dates. Would you like me to add them to your calendar?`,
-      });
-
-      fileInput.value.value = '';
-      selectedFile.value = null;
-      scrollToBottom();
-    }, 1500);
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    chatMessages.value.push({
-      role: 'system',
-      content: `Failed to upload file. Please try again.`,
-    });
-    scrollToBottom();
   }
 };
 
@@ -263,6 +247,35 @@ const scrollToBottom = async () => {
     chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight;
   }
 };
+
+// Function to clear chat history
+const clearChatHistory = async () => {
+  try {
+    isClearing.value = true;
+    await chatApi.clearHistory();
+    chatMessages.value = [{
+      role: 'assistant',
+      content: "Chat history has been cleared. How can I help you today?",
+    }];
+    scrollToBottom();
+  } catch (error) {
+    console.error('Error clearing chat history:', error);
+    chatMessages.value.push({
+      role: 'system',
+      content: 'Failed to clear chat history. Please try again.',
+    });
+  } finally {
+    isClearing.value = false;
+  }
+};
+
+// Watch for auth state changes
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    // Reload the calendar when user authenticates
+    iframeKey.value += 1;
+  }
+});
 
 onMounted(() => {
   console.log('HomeView mounted');
@@ -299,6 +312,57 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
+.auth-prompt {
+  text-align: center;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-width: 80%;
+}
+
+.auth-prompt h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.signin-button-large {
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  transition: all 0.2s;
+}
+
+.signin-button-large:hover {
+  background-color: #3367D6;
+}
+
+.auth-status {
+  display: flex;
+  align-items: center;
+}
+
+.signin-button {
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.signin-button:hover {
+  background-color: #3367D6;
+}
+
 .calendar-wrapper {
   height: 100%;
   width: 100%;
@@ -328,6 +392,33 @@ onMounted(() => {
   font-weight: 600;
   color: #2d3748;
   margin: 0;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clear-history-btn {
+  background-color: #f7fafc;
+  color: #718096;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-history-btn:hover:not([disabled]) {
+  background-color: #edf2f7;
+  color: #4a5568;
+}
+
+.clear-history-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .quick-actions-toggle {
@@ -429,6 +520,32 @@ onMounted(() => {
   animation: fadeIn 0.3s ease-out;
 }
 
+.thinking {
+  padding: 0.5rem 1rem;
+}
+
+.dot-animation {
+  display: inline-block;
+  position: relative;
+  width: 40px;
+  height: 16px;
+}
+
+.dot-animation::before {
+  content: '...';
+  display: inline-block;
+  animation: dotAnimation 1.5s infinite;
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+@keyframes dotAnimation {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -503,26 +620,6 @@ onMounted(() => {
   color: #a0aec0;
 }
 
-.upload-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  padding: 0.5rem 0.75rem;
-  color: #a0aec0;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.upload-button:hover {
-  color: #4299e1;
-}
-
-.icon-clip {
-  font-size: 1.25rem;
-}
-
 .send-button {
   background-color: #4299e1;
   color: white;
@@ -535,14 +632,20 @@ onMounted(() => {
   box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
 }
 
-.send-button:hover {
+.send-button:hover:not([disabled]) {
   background-color: #3182ce;
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
 }
 
-.send-button:active {
+.send-button:active:not([disabled]) {
   transform: translateY(0);
+}
+
+.send-button[disabled] {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .calendar-panel {
