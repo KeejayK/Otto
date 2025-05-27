@@ -3,7 +3,10 @@
     <div class="chat-panel">
       <div class="panel-header">
         <h2 class="panel-title">otto</h2>
-        <div class="quick-actions-toggle" @click="toggleQuickActions">
+        <div v-if="!authStore.isAuthenticated" class="auth-status">
+          <button class="signin-button" @click="navigateToLogin">Sign In</button>
+        </div>
+        <div v-else class="quick-actions-toggle" @click="toggleQuickActions">
           <span>Quick Actions</span>
           <span class="toggle-icon">{{ isQuickActionsOpen ? '▲' : '▼' }}</span>
         </div>
@@ -52,6 +55,9 @@
         >
           {{ message.content }}
         </div>
+        <div v-if="isLoading" class="chat-message bot-message thinking">
+          <span class="dot-animation"></span>
+        </div>
       </div>
 
       <div class="chat-input-container">
@@ -61,15 +67,22 @@
             type="text"
             placeholder="Message Otto"
             class="chat-input"
+            :disabled="isLoading"
             @keydown.enter="sendMessage"
           />
         </div>
-        <button class="send-button" @click="sendMessage">Send</button>
+        <button class="send-button" :disabled="isLoading" @click="sendMessage">
+          {{ isLoading ? 'Sending...' : 'Send' }}
+        </button>
       </div>
     </div>
 
     <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
-      <p>Please sign in to view your calendar</p>
+      <div class="auth-prompt">
+        <h3>Please sign in to access your calendar</h3>
+        <p>Sign in with your Google account to view and manage your calendar events.</p>
+        <button class="signin-button-large" @click="navigateToLogin">Sign In with Google</button>
+      </div>
     </div>
     <div v-else-if="calendarUrl" class="calendar-wrapper">
       <iframe
@@ -87,16 +100,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { chatApi } from '@/services/api'; // Import the existing chatApi
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
 const userMessage = ref('');
 const chatMessages = ref([]);
 const isQuickActionsOpen = ref(false);
 const iframeKey = ref(0);
+const isLoading = ref(false);
 
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
@@ -107,12 +123,18 @@ const calendarUrl = computed(() => {
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
+// Redirect to login page
+const navigateToLogin = () => {
+  router.push('/login');
+};
+
 // Send message function
 const sendMessage = async () => {
-  if (!userMessage.value.trim()) return;
+  if (!userMessage.value.trim() || isLoading.value) return;
 
   const messageText = userMessage.value;
   userMessage.value = '';
+  isLoading.value = true;
 
   // Add user message to chat
   chatMessages.value.push({
@@ -120,23 +142,36 @@ const sendMessage = async () => {
     content: messageText,
   });
 
+  // Scroll as soon as user sends a message
+  await scrollToBottom();
+
   try {
-    // Use the imported chatApi
-
-    // TODO: assistant should be able to clarify details like location
     const response = await chatApi.sendMessage(messageText);
-    console.log('Response from chatApi:');
-    console.log(response);
+    console.log('Response from chatApi:', response);
 
-    chatMessages.value.push({
-      role: 'assistant',
-      content: response.data.message,
-    });
+    // Handle authentication requirements
+    if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.data.message + " Would you like to sign in now?",
+      });
+      
+      // Add sign-in prompt as system message
+      chatMessages.value.push({
+        role: 'system',
+        content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
+      });
+    } else {
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.data.message,
+      });
 
-    // once event is pushed, refresh calendar iframe
-    if (['create', 'update', 'delete'].includes(response.data.type)) {
-      iframeKey.value += 1;
-      await nextTick();
+      // once event is pushed, refresh calendar iframe
+      if (['create', 'update', 'delete'].includes(response.data.type)) {
+        iframeKey.value += 1;
+        await nextTick();
+      }
     }
   } catch (error) {
     console.error('Error sending message:', error);
@@ -144,9 +179,10 @@ const sendMessage = async () => {
       role: 'system',
       content: 'Sorry, I encountered an error. Please try again.',
     });
+  } finally {
+    isLoading.value = false;
+    scrollToBottom();
   }
-
-  scrollToBottom();
 };
 
 // Toggle quick actions menu
@@ -200,6 +236,14 @@ const scrollToBottom = async () => {
   }
 };
 
+// Watch for auth state changes
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    // Reload the calendar when user authenticates
+    iframeKey.value += 1;
+  }
+});
+
 onMounted(() => {
   console.log('HomeView mounted');
   chatMessages.value.push({
@@ -233,6 +277,57 @@ onMounted(() => {
   background-color: #f7fafc;
   color: #718096;
   font-size: 1.1rem;
+}
+
+.auth-prompt {
+  text-align: center;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-width: 80%;
+}
+
+.auth-prompt h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.signin-button-large {
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  transition: all 0.2s;
+}
+
+.signin-button-large:hover {
+  background-color: #3367D6;
+}
+
+.auth-status {
+  display: flex;
+  align-items: center;
+}
+
+.signin-button {
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.signin-button:hover {
+  background-color: #3367D6;
 }
 
 .calendar-wrapper {
@@ -365,6 +460,32 @@ onMounted(() => {
   animation: fadeIn 0.3s ease-out;
 }
 
+.thinking {
+  padding: 0.5rem 1rem;
+}
+
+.dot-animation {
+  display: inline-block;
+  position: relative;
+  width: 40px;
+  height: 16px;
+}
+
+.dot-animation::before {
+  content: '...';
+  display: inline-block;
+  animation: dotAnimation 1.5s infinite;
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+@keyframes dotAnimation {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -451,14 +572,20 @@ onMounted(() => {
   box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
 }
 
-.send-button:hover {
+.send-button:hover:not([disabled]) {
   background-color: #3182ce;
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
 }
 
-.send-button:active {
+.send-button:active:not([disabled]) {
   transform: translateY(0);
+}
+
+.send-button[disabled] {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .calendar-panel {
