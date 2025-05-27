@@ -3,12 +3,17 @@
     <div class="chat-panel">
       <div class="panel-header">
         <h2 class="panel-title">otto</h2>
-        <div v-if="!authStore.isAuthenticated" class="auth-status">
-          <button class="signin-button" @click="navigateToLogin">Sign In</button>
-        </div>
-        <div v-else class="quick-actions-toggle" @click="toggleQuickActions">
-          <span>Quick Actions</span>
-          <span class="toggle-icon">{{ isQuickActionsOpen ? '▲' : '▼' }}</span>
+        <div class="panel-actions">
+          <button class="clear-history-btn" :disabled="isClearing" @click="clearChatHistory">
+            {{ isClearing ? 'Clearing...' : 'Clear History' }}
+          </button>
+          <div v-if="!authStore.isAuthenticated" class="auth-status">
+            <button class="signin-button" @click="navigateToLogin">Sign In</button>
+          </div>
+          <div v-else class="quick-actions-toggle" @click="toggleQuickActions">
+            <span>Quick Actions</span>
+            <span class="toggle-icon">{{ isQuickActionsOpen ? '▲' : '▼' }}</span>
+          </div>
         </div>
       </div>
 
@@ -119,6 +124,7 @@ const chatMessages = ref([]);
 const isQuickActionsOpen = ref(false);
 const iframeKey = ref(0);
 const isLoading = ref(false);
+const isClearing = ref(false);
 
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
@@ -239,6 +245,27 @@ const scrollToBottom = async () => {
   await nextTick();
   if (chatHistoryRef.value) {
     chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight;
+  }
+};
+
+// Function to clear chat history
+const clearChatHistory = async () => {
+  try {
+    isClearing.value = true;
+    await chatApi.clearHistory();
+    chatMessages.value = [{
+      role: 'assistant',
+      content: "Chat history has been cleared. How can I help you today?",
+    }];
+    scrollToBottom();
+  } catch (error) {
+    console.error('Error clearing chat history:', error);
+    chatMessages.value.push({
+      role: 'system',
+      content: 'Failed to clear chat history. Please try again.',
+    });
+  } finally {
+    isClearing.value = false;
   }
 };
 
@@ -365,6 +392,33 @@ onMounted(() => {
   font-weight: 600;
   color: #2d3748;
   margin: 0;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clear-history-btn {
+  background-color: #f7fafc;
+  color: #718096;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-history-btn:hover:not([disabled]) {
+  background-color: #edf2f7;
+  color: #4a5568;
+}
+
+.clear-history-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .quick-actions-toggle {

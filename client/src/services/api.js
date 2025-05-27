@@ -83,6 +83,10 @@ export const chatApi = {
     const res = await api.get('/chat/history');
     return res.data; // array of { id, message, role, timestamp }
   },
+  clearHistory: async () => {
+    const res = await api.delete('/chat/history');
+    return res.data; // { message: 'Chat history cleared successfully' }
+  },
   sendMessage: async (message) => {
     try {
       const res = await api.post('/chat', { message });

@@ -20,6 +20,13 @@ router.get('/history', (req, res) => {
   res.json(chatHistory);
 });
 
+// DELETE /api/chat/history
+router.delete('/history', verifyFirebaseToken, (req, res) => {
+  chatHistory = [];
+  console.log('Chat history cleared');
+  res.status(200).json({ message: 'Chat history cleared successfully' });
+});
+
 // POST /api/chat
 router.post('/', verifyFirebaseToken, async (req, res) => {
   const userMessage = req.body.message;
@@ -212,7 +219,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         }
         break;
       }
-      case 'update': {
+case 'update': {
         // grab existing list of events
         const listRes = await axios.get(
           'http://localhost:3000/api/calendar/list-events',
@@ -240,33 +247,45 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           break;
         }
 
-        // Check for missing fields
-        const missingFields = ['title', 'start time', 'end time'].filter(f => !parsed[f]);
-        if (missingFields.length) {
-          sessionState[sessionId] = {
-            pendingEvent: {
-              ...parsed,
-              action: 'update',
-              missingFields,
-              eventId,
-            }
-          };
-          replyMessage = `⚠️ **Missing details:** ${missingFields.map(f => `\`${f}\``).join(', ')}.\n\nPlease provide the following details to update your event.`;
-          chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
-          return res.status(200).json({ message: replyMessage });
+        // Find the existing event to use for missing details
+        const existingEvent = events.find(e => e.id === eventId);
+        if (!existingEvent) {
+          replyMessage = "❗ **Event not found.** Please specify which event you want to update.";
+          break;
         }
+
+        // Merge existing event details with updates
+        const updateData = {
+          eventId,
+          title: title || existingEvent.summary,
+          location: location || existingEvent.location,
+          description: description || existingEvent.description,
+          start: start || existingEvent.start.dateTime || existingEvent.start.date,
+          end: end || existingEvent.end.dateTime || existingEvent.end.date
+        };
 
         // Ask for confirmation before updating
         sessionState[sessionId] = {
           pendingEvent: {
-            ...parsed,
+            ...updateData,
             action: 'update',
             awaitingConfirmation: true,
             eventId,
           }
         };
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${title}**\n- 🗓️ ${start} - ${end}${location ? `\n- 📍 ${location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
+        
+        // Format times for better readability
+        const startDate = new Date(updateData.start);
+        const endDate = new Date(updateData.end);
+        const formattedStart = startDate.toLocaleString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric', 
+          hour: 'numeric', minute: 'numeric'
+        });
+        const formattedEnd = endDate.toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: 'numeric'
+        });
+        
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -358,16 +377,38 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           } catch {
             partial = {};
           }
-          // Normalize field names for missing fields
-          const requiredFields = ['title', 'start', 'end'];
-          // Accept both 'start' and 'start time', 'end' and 'end time'
-          const hasField = (obj, f) => obj[f] || obj[f.replace(' ', '')] || obj[f.replace(' time', '')];
-          const missingFields = requiredFields.filter(f => !hasField(partial, f));
+             // Normalize field names for missing fields
+          const hasField = (obj, f, action = 'create') => {
+            // Check direct field name
+            if (obj[f]) return true;
+            
+            // Check with spaces removed (e.g., "starttime" -> "start time")
+            if (obj[f.replace(' ', '')]) return true;
+            
+            // Check with "time" suffix added/removed
+            if (f === 'start' && obj['start time']) return true;
+            if (f === 'end' && obj['end time']) return true;
+            if (f === 'start time' && obj['start']) return true;
+            if (f === 'end time' && obj['end']) return true;
+            
+            // For updates, we should be more lenient - only require event ID
+            if (action === 'update' && obj.eventId) return true;
+            
+            return false;
+          };
+          
+          // For create actions, require all fields; for update actions, be more lenient
+          const action = partial.eventId ? 'update' : 'create';
+          const fieldsToCheck = action === 'update' 
+            ? [] // For updates, we'll use the existing event data for missing fields
+            : requiredFields;
+            
+          const missingFields = fieldsToCheck.filter(f => !hasField(partial, f, action));
           if (missingFields.length) {
             sessionState[sessionId] = {
               pendingEvent: {
                 ...partial,
-                action: 'create',
+                action: action,
                 missingFields,
               }
             };
