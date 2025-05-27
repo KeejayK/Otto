@@ -170,14 +170,48 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         );
         const events = listRes.data;
         if (events.length === 0) {
-          replyMessage = 'You have no upcoming events.';
+          replyMessage = '📅 **You have no upcoming events.**';
         } else {
-          replyMessage = 'Here are your upcoming events:\n' +
-            events.map(e => `- ${e.summary} at ${e.start.dateTime || e.start.date}`).join('\n');
+          // Group events by day of the week (including weekends)
+          const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const grouped = {};
+          for (const e of events) {
+            const start = new Date(e.start.dateTime || e.start.date);
+            const dayIdx = start.getDay();
+            const dayName = daysOfWeek[dayIdx];
+            if (!grouped[dayName]) grouped[dayName] = [];
+            grouped[dayName].push(e);
+          }
+          // Order days as Sunday to Saturday
+          let eventLines = [];
+          daysOfWeek.forEach(day => {
+            if (grouped[day]) {
+              eventLines.push(`\n---\n#### ${day}`);
+              grouped[day].forEach((e, idx) => {
+                const start = new Date(e.start.dateTime || e.start.date);
+                const end = new Date(e.end.dateTime || e.end.date);
+                const options = { month: 'short', day: 'numeric' };
+                const dateStr = start.toLocaleDateString('en-US', options);
+                const startTime = e.start.dateTime
+                  ? start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  : 'All day';
+                const endTime = e.end.dateTime
+                  ? end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  : '';
+                eventLines.push(
+                  `- **${e.summary || 'Untitled Event'}**` +
+                  `\n  > 🗓️ ${dateStr}` +
+                  `\n  > 🕒 ${startTime}${endTime ? ` - ${endTime}` : ''}` +
+                  (e.location ? `\n  > 📍 ${e.location}` : '') +
+                  (e.description ? `\n  > 📝 ${e.description}` : '')
+                );
+              });
+            }
+          });
+          replyMessage = `📅 **Here are your upcoming events, grouped by day:**\n` + eventLines.join('\n');
         }
         break;
       }
-
       case 'update': {
         // grab existing list of events
         const listRes = await axios.get(
@@ -202,12 +236,12 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         const { eventId, title, location, description, start, end } = parsed;
 
         if (!eventId || eventId === "None") {
-          replyMessage = "Event not found. Please specify which event you want to update.";
+          replyMessage = "❗ **Event not found.** Please specify which event you want to update.";
           break;
         }
 
         // Check for missing fields
-        const missingFields = ['title', 'start', 'end'].filter(f => !parsed[f]);
+        const missingFields = ['title', 'start time', 'end time'].filter(f => !parsed[f]);
         if (missingFields.length) {
           sessionState[sessionId] = {
             pendingEvent: {
@@ -217,7 +251,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
               eventId,
             }
           };
-          replyMessage = `Please provide the following details to update: ${missingFields.join(', ')}`;
+          replyMessage = `⚠️ **Missing details:** ${missingFields.map(f => `\`${f}\``).join(', ')}.\n\nPlease provide the following details to update your event.`;
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
           return res.status(200).json({ message: replyMessage });
@@ -232,7 +266,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             eventId,
           }
         };
-        replyMessage = `Please confirm: Update "${title}" at ${start} - ${end}${location ? ' in ' + location : ''}? (yes/no)`;
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${title}**\n- 🗓️ ${start} - ${end}${location ? `\n- 📍 ${location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -261,7 +295,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         }
         const { eventId } = parsed;
         if (!eventId || eventId === "None") {
-          replyMessage = "Event not found. Please specify which event you want to delete.";
+          replyMessage = "❗ **Event not found.** Please specify which event you want to delete.";
           break;
         }
 
@@ -279,7 +313,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             location: event?.location || '',
           }
         };
-        replyMessage = `Please confirm: Delete event "${event?.summary}" at ${event?.start?.dateTime || event?.start?.date || ''} - ${event?.end?.dateTime || event?.end?.date || ''}${event?.location ? ' in ' + event.location : ''}? (yes/no)`;
+        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${event?.start?.dateTime || event?.start?.date || ''} - ${event?.end?.dateTime || event?.end?.date || ''}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -287,6 +321,23 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 
       case 'create':
       default: {
+        // If the user message matches a known quick action, provide a helpful instruction instead of sending to OpenAI
+        const quickActionInstructions = {
+          'Add new class':
+            'You can add a new class by saying something like: "Add a class called [Course Name] on [Days of week] from [start time] to [end time] in [location]".\nFor example: "Add CSE 446 on Mondays and Wednesdays from 9am to 10am in Kane Hall."',
+          'Add a new event':
+            'You can add a new event by saying: "Add [event name] on [date] from [start time] to [end time] in [location]".\nFor example: "Add a 2 hour Zoom meeting later today at 4pm."',
+          'Change current event':
+            'To update an event, say something like: "Change my meeting on Friday to 3pm" or "Update the location of my class on Monday to Smith Hall."',
+          'Delete event':
+            'To delete an event, say something like: "Delete my meeting on Thursday" or "Remove CSE 446 on Monday."',
+        };
+        if (quickActionInstructions[userMessage.trim()]) {
+          replyMessage = quickActionInstructions[userMessage.trim()];
+          chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
+          return res.status(200).json({ message: replyMessage });
+        }
         // Build create prompt and parse
         const prompt = createPrompt(userMessage);
         const completion = await openai.chat.completions.create({
@@ -307,21 +358,68 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           } catch {
             partial = {};
           }
-          const missingFields = ['title', 'start', 'end'].filter(f => !partial[f]);
+          // Normalize field names for missing fields
+          const requiredFields = ['title', 'start', 'end'];
+          // Accept both 'start' and 'start time', 'end' and 'end time'
+          const hasField = (obj, f) => obj[f] || obj[f.replace(' ', '')] || obj[f.replace(' time', '')];
+          const missingFields = requiredFields.filter(f => !hasField(partial, f));
+          if (missingFields.length) {
+            sessionState[sessionId] = {
+              pendingEvent: {
+                ...partial,
+                action: 'create',
+                missingFields,
+              }
+            };
+            replyMessage = `⚠️ **Missing details:** ${missingFields.map(f => `\`${f}\``).join(', ')}.\n\nPlease provide the following details to create your event.`;
+            chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+            chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
+            return res.status(200).json({ message: replyMessage });
+          } else {
+            // All required fields present, continue to confirmation
+            // Normalize the fields for confirmation
+            parsedEvent = {
+              ...partial,
+              title: partial.title || partial['title'],
+              start: partial.start || partial['start time'],
+              end: partial.end || partial['end time'],
+            };
+          }
+        }
+
+        // If all required fields present, ask for confirmation
+        // Validate that start and end are valid ISO strings
+        let invalidFields = [];
+        if (parsedEvent.start && isNaN(Date.parse(parsedEvent.start))) invalidFields.push('start');
+        if (parsedEvent.end && isNaN(Date.parse(parsedEvent.end))) invalidFields.push('end');
+        if (invalidFields.length) {
           sessionState[sessionId] = {
             pendingEvent: {
-              ...partial,
+              ...parsedEvent,
               action: 'create',
-              missingFields,
+              missingFields: invalidFields,
             }
           };
-          replyMessage = `Please provide the following details: ${missingFields.join(', ')}`;
+          replyMessage = `⚠️ **Invalid or missing details:** ${invalidFields.map(f => `\`${f}\``).join(', ')}.\n\nPlease provide a valid value for: ${invalidFields.join(', ')}`;
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
           return res.status(200).json({ message: replyMessage });
         }
 
-        // If all required fields present, ask for confirmation
+        // Custom confirmation message
+        const eventStart = new Date(parsedEvent.start);
+        const eventEnd = new Date(parsedEvent.end);
+        const dayOfWeek = eventStart.toLocaleDateString('en-US', { weekday: 'long' });
+        const monthDay = eventStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const startTime = eventStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const endTime = eventEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        let confirmMsg = `✅ **Confirm the following event:**\n\n`;
+        confirmMsg += `**${parsedEvent.title}** (${dayOfWeek} - ${monthDay})\n`;
+        confirmMsg += `- 🕒 ${startTime} - ${endTime}\n`;
+        if (parsedEvent.location) confirmMsg += `- 📍 ${parsedEvent.location}\n`;
+        if (parsedEvent.description) confirmMsg += `- 📝 ${parsedEvent.description}\n`;
+        confirmMsg += `\nType \`yes\` to confirm or \`no\` to cancel.`;
+
         sessionState[sessionId] = {
           pendingEvent: {
             ...parsedEvent,
@@ -329,7 +427,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             awaitingConfirmation: true,
           }
         };
-        replyMessage = `Please confirm: "${parsedEvent.title}" at ${parsedEvent.start} - ${parsedEvent.end}${parsedEvent.location ? ' in ' + parsedEvent.location : ''}. Add to calendar? (yes/no)`;
+        replyMessage = confirmMsg;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });

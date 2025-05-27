@@ -28,9 +28,9 @@
 
         <button class="action-btn" @click="handleQuickAction('Add new class')">
           <div class="action-icon">🔁</div>
-          Add recurring event
+          Add new class
         </button>
-        
+
         <button
           class="action-btn"
           @click="handleQuickAction('Change current event')"
@@ -53,13 +53,17 @@
                 : 'bot-message',
           ]"
         >
-          {{ message.content }}
+          <template v-if="message.role === 'assistant'">
+            <VueMarkdownIt :source="message.content" />
+          </template>
+          <template v-else>
+            {{ message.content }}
+          </template>
         </div>
         <div v-if="isLoading" class="chat-message bot-message thinking">
           <span class="dot-animation"></span>
         </div>
       </div>
-
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
           <input
@@ -104,6 +108,8 @@ import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { chatApi } from '@/services/api'; // Import the existing chatApi
 import { useRouter } from 'vue-router';
+import VueMarkdownIt from 'vue3-markdown-it';
+
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -222,7 +228,7 @@ const handleQuickAction = (action) => {
       ].join('\n')
     });
   }
-    else {
+  else {
     userMessage.value = action;
     sendMessage();
   }
