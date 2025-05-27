@@ -9,7 +9,7 @@
         </div>
       </div>
 
-      <div class="quick-actions-menu" v-if="isQuickActionsOpen">
+      <div v-if="isQuickActionsOpen" class="quick-actions-menu">
         <button
           class="action-btn"
           @click="handleQuickAction('See events this week')"
@@ -37,7 +37,7 @@
         </button>
       </div>
 
-      <div class="chat-history" ref="chatHistoryRef">
+      <div ref="chatHistoryRef" class="chat-history">
         <div
           v-for="(message, index) in chatMessages"
           :key="index"
@@ -57,24 +57,14 @@
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
           <input
-            type="text"
             v-model="userMessage"
-            @keydown.enter="sendMessage"
+            type="text"
             placeholder="Message Otto"
             class="chat-input"
-          />
-          <button @click="openFileUpload" class="upload-button">
-            <span class="icon-clip">📎</span>
-          </button>
-          <input
-            ref="fileInput"
-            type="file"
-            @change="handleFileUpload"
-            accept="image/*,.pdf"
-            style="display: none"
+            @keydown.enter="sendMessage"
           />
         </div>
-        <button @click="sendMessage" class="send-button">Send</button>
+        <button class="send-button" @click="sendMessage">Send</button>
       </div>
     </div>
 
@@ -105,8 +95,6 @@ const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
 const userMessage = ref('');
 const chatMessages = ref([]);
-const fileInput = ref(null);
-const selectedFile = ref(null);
 const isQuickActionsOpen = ref(false);
 const iframeKey = ref(0);
 
@@ -115,9 +103,7 @@ const calendarUrl = computed(() => {
   if (!authStore.user?.email) return null;
 
   const encodedEmail = encodeURIComponent(authStore.user.email);
-
-  // TODO: user should be able to change timezones
-  // return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
+  
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
@@ -163,7 +149,6 @@ const sendMessage = async () => {
   scrollToBottom();
 };
 
-// Rest of your existing functions...
 // Toggle quick actions menu
 const toggleQuickActions = () => {
   isQuickActionsOpen.value = !isQuickActionsOpen.value;
@@ -204,55 +189,6 @@ const handleQuickAction = (action) => {
     else {
     userMessage.value = action;
     sendMessage();
-  }
-};
-
-// Open file upload dialog
-const openFileUpload = () => {
-  fileInput.value.click();
-};
-
-// Handle file selection
-const handleFileUpload = (event) => {
-  selectedFile.value = event.target.files[0];
-  if (selectedFile.value) {
-    chatMessages.value.push({
-      role: 'user',
-      content: `Selected file: ${selectedFile.value.name}`,
-    });
-    uploadFile();
-    scrollToBottom();
-  }
-};
-
-// Upload file
-const uploadFile = async () => {
-  if (!selectedFile.value) return;
-
-  try {
-    chatMessages.value.push({
-      role: 'system',
-      content: `Uploading ${selectedFile.value.name}...`,
-    });
-
-    // Simulate a response
-    setTimeout(() => {
-      chatMessages.value.push({
-        role: 'assistant',
-        content: `I've analyzed your ${selectedFile.value.name}. I found several important dates. Would you like me to add them to your calendar?`,
-      });
-
-      fileInput.value.value = '';
-      selectedFile.value = null;
-      scrollToBottom();
-    }, 1500);
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    chatMessages.value.push({
-      role: 'system',
-      content: `Failed to upload file. Please try again.`,
-    });
-    scrollToBottom();
   }
 };
 
@@ -501,26 +437,6 @@ onMounted(() => {
 
 .chat-input::placeholder {
   color: #a0aec0;
-}
-
-.upload-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  padding: 0.5rem 0.75rem;
-  color: #a0aec0;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.upload-button:hover {
-  color: #4299e1;
-}
-
-.icon-clip {
-  font-size: 1.25rem;
 }
 
 .send-button {
