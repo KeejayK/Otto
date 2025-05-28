@@ -28,11 +28,9 @@
             <!-- Confirmation buttons for event operations -->
             <div v-if="isConfirmationMessage(message.content)" class="confirmation-buttons">
               <button class="confirm-btn" @click="handleConfirmation(true)">
-                <span class="button-icon">✅</span>
                 Confirm
               </button>
               <button class="cancel-btn" @click="handleConfirmation(false)">
-                <span class="button-icon">❌</span>
                 Cancel
               </button>
             </div>
@@ -921,46 +919,30 @@ onMounted(() => {
 }
 
 .confirm-btn, .cancel-btn {
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-weight: 600;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 8px 16px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
+  font-size: 14px;
+  transition: all 0.2s;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.button-icon {
-  font-size: 16px;
-}
-
-.confirm-btn {
-  background-color: #4285f4;
-  color: white;
-}
-
-.confirm-btn:hover {
-  background-color: #3b78e7;
-  transform: translateY(-2px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-}
-
-.cancel-btn {
-  background-color: #f1f3f4;
-  color: #5f6368;
-}
-
-.cancel-btn:hover {
-  background-color: #e8eaed;
-  transform: translateY(-2px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+.confirm-btn:hover, .cancel-btn:hover {
+  background-color: #e5e5e5;
+  color: #333;
+  box-shadow: none;
+  transform: translateY(0);
 }
 
 .confirm-btn:active, .cancel-btn:active {
-  transform: translateY(0);
-  box-shadow: none;
+  background-color: #f1f3f4;
+  color: #5f6368;
 }
 
 /* Form Modal Styles */
