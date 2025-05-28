@@ -604,6 +604,40 @@ const submitForm = () => {
     content: userPromptDisplay
   });
   
+  // For recurring events, construct proper recurrence rules
+  if (currentAction.value === 'Add recurring event') {
+    try {
+      // Map selected days to RRULE format (MO, TU, WE, etc.)
+      const dayMap = {
+        monday: 'MO',
+        tuesday: 'TU',
+        wednesday: 'WE',
+        thursday: 'TH',
+        friday: 'FR',
+        saturday: 'SA',
+        sunday: 'SU'
+      };
+      
+      const selectedDays = Object.entries(formData.value.daysOfWeek)
+        .filter(([_, selected]) => selected)
+        .map(([day]) => day);
+        
+      // Convert selected days to BYDAY values for RRULE
+      const byDayValues = selectedDays.map(day => dayMap[day.toLowerCase()]);
+      
+      // Format the end date in RRULE format (YYYYMMDD)
+      const untilDate = formData.value.endDate.replace(/-/g, '');
+      
+      // Create the RRULE string for Google Calendar
+      const recurrenceRule = `RRULE:FREQ=WEEKLY;BYDAY=${byDayValues.join(',')};UNTIL=${untilDate}T235959Z`;
+      
+      // Add recurrence information to the prompt
+      prompt += ` with recurrence rule "${recurrenceRule}"`;
+    } catch (e) {
+      console.error('Error processing recurring event:', e);
+    }
+  }
+  
   // Send the detailed command to the API
   userMessage.value = prompt;
   sendMessage();
