@@ -150,9 +150,9 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `❓ **Please confirm:**\n\nUpdate **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `❓ **Please confirm:**\n\nDelete event **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           } else {
             replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           }
@@ -190,10 +190,15 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           // Get today's day of week (0-6)
           const todayIdx = today.getDay();
           
-          // Filter events to only include those from today onward
+          // Calculate the end of the current week (Saturday 23:59:59)
+          const endOfWeek = new Date(today);
+          endOfWeek.setDate(today.getDate() + (6 - todayIdx)); // Go to Saturday
+          endOfWeek.setHours(23, 59, 59, 999); // End of day
+          
+          // Filter events to only include those from today to end of week
           const filteredEvents = events.filter(e => {
             const eventDate = new Date(e.start.dateTime || e.start.date);
-            return eventDate >= today;
+            return eventDate >= today && eventDate <= endOfWeek;
           });
           
           // Group by day of week
@@ -203,11 +208,8 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             const dayIdx = start.getDay();
             const dayName = daysOfWeek[dayIdx];
             
-            // Only include days from today to Saturday (this week only)
-            if (dayIdx >= todayIdx && dayIdx <= 6) {
-              if (!grouped[dayName]) grouped[dayName] = [];
-              grouped[dayName].push(e);
-            }
+            if (!grouped[dayName]) grouped[dayName] = [];
+            grouped[dayName].push(e);
           }
           
           // Determine event type for styling
@@ -246,24 +248,26 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           let eventLines = [];
           eventLines.push('## EVENTS THIS WEEK');
           
-          // Get day numbers for organized display
-          const getDayNumber = (day) => {
-            const date = new Date();
+          // Get date object for organized display
+          const getDateForDay = (day) => {
+            const today = new Date();
+            const todayDayIndex = today.getDay(); // 0 (Sunday) to 6 (Saturday)
             const dayIndex = daysOfWeek.indexOf(day);
-            const diff = dayIndex - date.getDay();
-            const newDate = new Date(date);
-            newDate.setDate(date.getDate() + diff);
-            return newDate.getDate();
+            const diff = dayIndex - todayDayIndex;
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + diff);
+            return targetDate;
           };
           
           daysOfWeek.forEach(day => {
             if (grouped[day]) {
               // Format day headers similar to the calendar view (DAY, MONTH DAY)
-              const dayNumber = getDayNumber(day);
-              const monthAbbrev = new Date().toLocaleString('en-US', { month: 'short' }).toUpperCase();
+              const dateForDay = getDateForDay(day);
+              const dayNumber = dateForDay.getDate();
+              const monthAbbrev = dateForDay.toLocaleString('en-US', { month: 'short' }).toUpperCase();
               
               // Add day heading with spacing between day/date and extra spacing between days
-              eventLines.push(`\n\n### ${dayNumber}   ${day.substring(0, 3).toUpperCase()}`);
+              eventLines.push(`\n\n### ${dayNumber} ${monthAbbrev}   ${day.substring(0, 3).toUpperCase()}`);
               
               grouped[day].forEach((e, idx) => {
                 const start = new Date(e.start.dateTime || e.start.date);
@@ -410,7 +414,7 @@ case 'update': {
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n`;
+        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
