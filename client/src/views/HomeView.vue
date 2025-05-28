@@ -41,73 +41,7 @@
             {{ message.content }}
           </template>
         </div>
-        
-        <!-- In-chat Form: Add Event -->
-        <div v-if="showInChatForm && currentAction === 'Add new event'" class="chat-message bot-message in-chat-form">
-          <h4>Add New Event</h4>
-          <div class="chat-form">
-            <div class="form-group">
-              <label for="eventName">Event Name:</label>
-              <input
-                id="eventName"
-                v-model="formData.eventName"
-                type="text"
-                placeholder="Enter event name"
-                class="form-control"
-                required
-              />
-            </div>
-            
-            <div class="form-group form-row">
-              <div>
-                <label for="startDate">Date:</label>
-                <input
-                  id="startDate"
-                  v-model="formData.startDate"
-                  type="date"
-                  class="form-control"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label>Time:</label>
-                <div class="time-input-group">
-                  <input
-                    id="startTime"
-                    v-model="formData.startTime"
-                    type="time"
-                    class="form-control"
-                  />
-                  <span>to</span>
-                  <input
-                    id="endTime"
-                    v-model="formData.endTime"
-                    type="time"
-                    class="form-control"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label for="location">Location (optional):</label>
-              <input
-                id="location"
-                v-model="formData.location"
-                type="text"
-                placeholder="Enter location"
-                class="form-control"
-              />
-            </div>
-            
-            <div class="form-actions">
-              <button class="form-cancel-btn" @click="cancelInChatForm">Cancel</button>
-              <button class="form-submit-btn" @click="submitForm">Create Event</button>
-            </div>
-          </div>
-        </div>
-        
+         
         <!-- In-chat Form: Add Recurring Event -->
         <div v-if="showInChatForm && currentAction === 'Add recurring event'" class="chat-message bot-message in-chat-form">
           <h4>Add Recurring Event</h4>
@@ -263,10 +197,6 @@
           <span class="pill-icon">📅</span>
           <span>Events this week</span>
         </button>
-        <button class="action-pill" @click="openInChatForm('Add new event')">
-          <span class="pill-icon">📝</span>
-          <span>Add event</span>
-        </button>
         <button class="action-pill" @click="openInChatForm('Add recurring event')">
           <span class="pill-icon">🔁</span>
           <span>Add recurring</span>
@@ -379,13 +309,29 @@ const isConfirmationMessage = (message) => {
 // Handle confirmation button clicks
 const handleConfirmation = (isConfirmed) => {
   if (isConfirmed) {
-    // Send 'yes' as user message
-    userMessage.value = 'yes';
+    // For event deletion, we want to avoid showing "yes" in the chat
+    // Check if the message contains a delete confirmation
+    const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
+    const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
+    
+    if (isDeleteConfirmation) {
+      // Don't show "yes" in the chat, just send it to the server
+      userMessage.value = 'yes';
+      
+      // Skip adding the user message to the chat in sendMessage
+      showInChatForm.value = true; // Trick sendMessage into not showing user input
+      sendMessage();
+      showInChatForm.value = false; // Reset after sending
+    } else {
+      // For other confirmations, use the normal flow
+      userMessage.value = 'yes';
+      sendMessage();
+    }
   } else {
     // Send 'no' as user message
     userMessage.value = 'no';
+    sendMessage();
   }
-  sendMessage();
 };
 
 // Redirect to login page
@@ -450,6 +396,43 @@ const sendMessage = async () => {
   } finally {
     isLoading.value = false;
     scrollToBottom();
+  }
+};
+
+// Send delete command without showing the technical message to the user
+const sendDeleteCommand = async (eventId) => {
+  isLoading.value = true;
+  
+  // Add a user message that's more user-friendly
+  chatMessages.value.push({
+    role: 'user',
+    content: 'Delete this event',
+  });
+  
+  // Scroll down to show the message
+  await scrollToBottom();
+  
+  try {
+    // Send the delete command directly to the API
+    const response = await chatApi.sendMessage(`Delete event with ID ${eventId}`);
+    console.log('Response from chatApi:', response);
+    
+    // Add the bot's response to the chat
+    chatMessages.value.push({
+      role: 'assistant',
+      content: response.data.message,
+    });
+    
+    // Scroll down to show the response
+    await scrollToBottom();
+  } catch (error) {
+    console.error('Error in sendDeleteCommand:', error);
+    chatMessages.value.push({
+      role: 'system',
+      content: 'Sorry, there was an error processing your request.',
+    });
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -609,13 +592,7 @@ const submitForm = () => {
 // Handle quick action button clicks
 const handleQuickAction = (action) => {
   if (action === 'See events this week') {
-    // Display user query in chat
-    chatMessages.value.push({
-      role: 'user',
-      content: action
-    });
-    
-    // Send message to API
+    // Set message and send to API
     userMessage.value = action;
     sendMessage();
   } else if (action === 'Add new event' || action === 'Add recurring event') {
@@ -662,9 +639,15 @@ const clearChatHistory = async () => {
 
 // Handle markdown link clicks for event actions
 const handleMarkdownLinkClick = (event) => {
-  // Check if the click was on a link
-  if (event.target.tagName === 'A') {
-    const href = event.target.getAttribute('href');
+  // Check if the click was on a link or its child element (like the icon)
+  let target = event.target;
+  // If we clicked on an icon or span inside the link, traverse up to find the link
+  while (target && target.tagName !== 'A' && target.parentElement) {
+    target = target.parentElement;
+  }
+  
+  if (target && target.tagName === 'A') {
+    const href = target.getAttribute('href');
     
     // Check if this is a command link
     if (href && href.startsWith('command:')) {
@@ -674,11 +657,11 @@ const handleMarkdownLinkClick = (event) => {
       if (action === 'edit') {
         // Open edit form for the event
         openInChatForm('Change current event');
+        formData.value.eventName = target.dataset.eventName || '';
         userMessage.value = `Change event with ID ${eventId}`;
       } else if (action === 'delete') {
-        // Send delete command
-        userMessage.value = `Delete event with ID ${eventId}`;
-        sendMessage();
+        // Send delete command without showing it to the user
+        sendDeleteCommand(eventId);
       }
     }
   }
@@ -1017,7 +1000,7 @@ textarea:focus {
 
 .action-panel {
   display: flex;
-  justify-content: center;
+  justify-content: right;
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
@@ -1242,7 +1225,7 @@ textarea:focus {
 .bot-message h2 {
   margin-top: 0;
   color: #2d3748;
-  font-size: 1rem;
+  font-size: 1.1rem;
   border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
@@ -1254,41 +1237,59 @@ textarea:focus {
   font-size: 1rem;
   margin-top: 2.5rem;
   margin-bottom: 1.2rem;
-  font-weight: 600;
-  background-color: #f7fafc;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  border-left: 4px solid #4299e1;
+  font-weight: 500;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .bot-message ul {
-  margin-top: 0.75rem;
-  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-left: 0;
   padding-left: 0;
   list-style-type: none;
+  border-bottom: 1px solid #f5f5f5;
 }
 
 .bot-message li {
-  margin-bottom: 0.7rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f5f5f5;
   line-height: 1.5;
   font-size: 1rem;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   position: relative;
+  padding-left: 0.5rem;
 }
 
 /* Make events appear as a single line with consistent font */
 .bot-message li strong {
   font-weight: 600;
   color: #2d3748;
-  margin-right: 0.5rem;
+  margin-right: 1.5rem;
   font-size: 1rem;
 }
 
 /* Ensure all text content has consistent font size */
-.bot-message li * {
+.bot-message li *:not(a) {
   font-size: 1rem !important;
+}
+
+/* Style the day number and abbreviation to match the image */
+.bot-message h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+}
+
+/* Style day numbers to be prominent */
+.bot-message h3::first-letter {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
 }
 
 /* Target vue3-markdown-it rendered content */
@@ -1308,36 +1309,99 @@ textarea:focus {
   font-size: 1rem !important;
 }
 
-/* Icons styling */
+/* Event spacing similar to the calendar view */
+.bot-message li {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+/* Button styling for event actions */
 .bot-message a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  padding: 0.25rem;
-  background-color: #ebf8ff;
+  padding: 0.25rem 0.5rem;
+  background-color: transparent;
   color: #3182ce;
   border-radius: 4px;
   margin-left: 0.5rem;
-  font-size: 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
   transition: all 0.2s;
   min-width: 28px;
   height: 28px;
   text-align: center;
+  position: relative;
 }
 
 .bot-message a:hover {
-  background-color: #bee3f8;
+  background-color: #f0f4f8;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Delete button styling */
 .bot-message a[href^="command:delete"] {
-  background-color: #fff5f5;
   color: #e53e3e;
 }
 
 .bot-message a[href^="command:delete"]:hover {
-  background-color: #fed7d7;
+  background-color: #fff5f5;
+}
+
+/* Edit button styling */
+.bot-message a[href^="command:edit"] {
+  color: #3182ce;
+}
+
+.bot-message a[href^="command:edit"]:hover {
+  background-color: #ebf8ff;
+}
+
+/* Action icon button styles */
+.action-icon {
+  font-size: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+}
+
+/* Tooltip styling */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 10;
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Event action buttons container */
+.event-actions {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 0.25rem;
 }
 </style>

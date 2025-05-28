@@ -246,25 +246,37 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           let eventLines = [];
           eventLines.push('## EVENTS THIS WEEK');
           
+          // Get day numbers for organized display
+          const getDayNumber = (day) => {
+            const date = new Date();
+            const dayIndex = daysOfWeek.indexOf(day);
+            const diff = dayIndex - date.getDay();
+            const newDate = new Date(date);
+            newDate.setDate(date.getDate() + diff);
+            return newDate.getDate();
+          };
+          
           daysOfWeek.forEach(day => {
             if (grouped[day]) {
-              eventLines.push(`\n\n#### ${day}`);
+              // Format day headers similar to the calendar view (DAY, MONTH DAY)
+              const dayNumber = getDayNumber(day);
+              const monthAbbrev = new Date().toLocaleString('en-US', { month: 'short' }).toUpperCase();
+              
+              // Add day heading with spacing between day/date and extra spacing between days
+              eventLines.push(`\n\n### ${dayNumber}   ${day.substring(0, 3).toUpperCase()}`);
               
               grouped[day].forEach((e, idx) => {
                 const start = new Date(e.start.dateTime || e.start.date);
                 const end = new Date(e.end.dateTime || e.end.date);
-                const options = { month: 'short', day: 'numeric' };
-                const dateStr = start.toLocaleDateString('en-US', options);
                 const startTime = e.start.dateTime
-                  ? start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                   : 'All day';
                 const endTime = e.end.dateTime
-                  ? end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  ? end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                   : '';
-                const eventType = getEventType(e.summary);
                 
-                // Create a cleaner, single line format with consistent styling
-                eventLines.push(`- **${e.summary || 'Untitled Event'}** | ${startTime}${endTime ? ` - ${endTime}` : ''} [✏️](command:edit:${e.id}) [🗑️](command:delete:${e.id})`);
+                // Create a cleaner, single line format with consistent styling and more spacing
+                eventLines.push(`-   *${startTime}${endTime ? ` – ${endTime}` : ''}*   ${e.summary || 'Untitled Event'} [Edit](command:edit:${e.id}) [Delete](command:delete:${e.id})`);
               });
             }
           });
