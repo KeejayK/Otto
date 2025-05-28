@@ -32,6 +32,9 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
   const userMessage = req.body.message;
   const authHeader = req.headers.authorization;
   const sessionId = req.user?.uid || req.headers['x-user-id'] || 'default';
+  
+  // Define required fields for event creation
+  const requiredFields = ['title', 'start', 'end'];
 
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided' });
@@ -104,6 +107,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                   description: pending.description,
                   start: pending.start,
                   end: pending.end,
+                  recurrence: pending.recurrence || null,
                 },
                 { headers: { Authorization: authHeader } }
               );
@@ -147,11 +151,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `Please confirm: Update "${pending.title}" at ${pending.start} - ${pending.end}${pending.location ? ' in ' + pending.location : ''}? (yes/no)`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `Please confirm: Delete event "${pending.title}" at ${pending.start} - ${pending.end}${pending.location ? ' in ' + pending.location : ''}? (yes/no)`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           } else {
-            replyMessage = `Please confirm: "${pending.title}" at ${pending.start} - ${pending.end}${pending.location ? ' in ' + pending.location : ''}. Add to calendar? (yes/no)`;
+            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           }
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -181,41 +185,108 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         } else {
           // Group events by day of the week (including weekends)
           const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Set to beginning of today
+          
+          // Get today's day of week (0-6)
+          const todayIdx = today.getDay();
+          
+          // Calculate the end of the current week (Saturday 23:59:59)
+          const endOfWeek = new Date(today);
+          endOfWeek.setDate(today.getDate() + (6 - todayIdx)); // Go to Saturday
+          endOfWeek.setHours(23, 59, 59, 999); // End of day
+          
+          // Filter events to only include those from today to end of week
+          const filteredEvents = events.filter(e => {
+            const eventDate = new Date(e.start.dateTime || e.start.date);
+            return eventDate >= today && eventDate <= endOfWeek;
+          });
+          
+          // Group by day of week
           const grouped = {};
-          for (const e of events) {
+          for (const e of filteredEvents) {
             const start = new Date(e.start.dateTime || e.start.date);
             const dayIdx = start.getDay();
             const dayName = daysOfWeek[dayIdx];
+            
             if (!grouped[dayName]) grouped[dayName] = [];
             grouped[dayName].push(e);
           }
-          // Order days as Sunday to Saturday
+          
+          // Determine event type for styling
+          const getEventType = (summary) => {
+            const lowerSummary = summary ? summary.toLowerCase() : '';
+            if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
+              return 'class-event';
+            } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment') || lowerSummary.includes('call')) {
+              return 'meeting-event';
+            } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due') || lowerSummary.includes('assignment')) {
+              return 'deadline-event';
+            } else {
+              return '';
+            }
+          };
+          
+          // Get appropriate emoji for event type
+          const getEventEmoji = (summary) => {
+            const lowerSummary = summary ? summary.toLowerCase() : '';
+            if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
+              return '📚';
+            } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment')) {
+              return '👥';
+            } else if (lowerSummary.includes('call') || lowerSummary.includes('zoom')) {
+              return '📞';
+            } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due')) {
+              return '⏰';
+            } else if (lowerSummary.includes('assignment') || lowerSummary.includes('homework')) {
+              return '📝';
+            } else {
+              return '📌';
+            }
+          };
+          
+          // Create a more visually appealing markdown output for events
           let eventLines = [];
+          eventLines.push('## EVENTS THIS WEEK');
+          
+          // Get date object for organized display
+          const getDateForDay = (day) => {
+            const today = new Date();
+            const todayDayIndex = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+            const dayIndex = daysOfWeek.indexOf(day);
+            const diff = dayIndex - todayDayIndex;
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + diff);
+            return targetDate;
+          };
+          
           daysOfWeek.forEach(day => {
             if (grouped[day]) {
-              eventLines.push(`\n---\n#### ${day}`);
+              // Format day headers similar to the calendar view (DAY, MONTH DAY)
+              const dateForDay = getDateForDay(day);
+              const dayNumber = dateForDay.getDate();
+              const monthAbbrev = dateForDay.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+              
+              // Add day heading with spacing between day/date and extra spacing between days
+              eventLines.push(`\n\n### ${dayNumber} ${monthAbbrev}   ${day.substring(0, 3).toUpperCase()}`);
+              
               grouped[day].forEach((e, idx) => {
                 const start = new Date(e.start.dateTime || e.start.date);
                 const end = new Date(e.end.dateTime || e.end.date);
-                const options = { month: 'short', day: 'numeric' };
-                const dateStr = start.toLocaleDateString('en-US', options);
                 const startTime = e.start.dateTime
-                  ? start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                   : 'All day';
                 const endTime = e.end.dateTime
-                  ? end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  ? end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                   : '';
-                eventLines.push(
-                  `- **${e.summary || 'Untitled Event'}**` +
-                  `\n  > 🗓️ ${dateStr}` +
-                  `\n  > 🕒 ${startTime}${endTime ? ` - ${endTime}` : ''}` +
-                  (e.location ? `\n  > 📍 ${e.location}` : '') +
-                  (e.description ? `\n  > 📝 ${e.description}` : '')
-                );
+                
+                // Create a cleaner, single line format with consistent styling and more spacing
+                eventLines.push(`-   *${startTime}${endTime ? ` – ${endTime}` : ''}*   ${e.summary || 'Untitled Event'} [Edit](command:edit:${e.id}) [Delete](command:delete:${e.id})`);
               });
             }
           });
-          replyMessage = `📅 **Here are your upcoming events, grouped by day:**\n` + eventLines.join('\n');
+          
+          replyMessage = eventLines.join('\n');
         }
         break;
       }
@@ -285,7 +356,7 @@ case 'update': {
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -332,7 +403,19 @@ case 'update': {
             location: event?.location || '',
           }
         };
-        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${event?.start?.dateTime || event?.start?.date || ''} - ${event?.end?.dateTime || event?.end?.date || ''}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
+        
+        // Format dates for readability
+        const startDate = new Date(event?.start?.dateTime || event?.start?.date || '');
+        const endDate = new Date(event?.end?.dateTime || event?.end?.date || '');
+        const formattedStart = startDate.toLocaleString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric', 
+          hour: 'numeric', minute: 'numeric'
+        });
+        const formattedEnd = endDate.toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: 'numeric'
+        });
+        
+        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -433,6 +516,12 @@ case 'update': {
         let invalidFields = [];
         if (parsedEvent.start && isNaN(Date.parse(parsedEvent.start))) invalidFields.push('start');
         if (parsedEvent.end && isNaN(Date.parse(parsedEvent.end))) invalidFields.push('end');
+        
+        // Process recurrence field if it exists
+        if (parsedEvent.recurrence && !Array.isArray(parsedEvent.recurrence)) {
+          parsedEvent.recurrence = [parsedEvent.recurrence];
+        }
+        
         if (invalidFields.length) {
           sessionState[sessionId] = {
             pendingEvent: {
@@ -457,10 +546,58 @@ case 'update': {
         let confirmMsg = `✅ **Confirm the following event:**\n\n`;
         confirmMsg += `**${parsedEvent.title}** (${dayOfWeek} - ${monthDay})\n`;
         confirmMsg += `- 🕒 ${startTime} - ${endTime}\n`;
+        
+        // Add recurring info to confirmation message if relevant
+        if (parsedEvent.recurrence && parsedEvent.recurrence.length > 0) {
+          // Extract recurrence information for display
+          const recurrenceRule = parsedEvent.recurrence[0];
+          let recurrenceText = "- 🔁 Repeats ";
+          
+          if (recurrenceRule.includes("FREQ=DAILY")) {
+            recurrenceText += "daily";
+          } else if (recurrenceRule.includes("FREQ=WEEKLY")) {
+            recurrenceText += "weekly";
+            
+            // Extract days
+            const bydayMatch = recurrenceRule.match(/BYDAY=([^;]+)/);
+            if (bydayMatch) {
+              const days = bydayMatch[1].split(',');
+              const dayNames = {
+                MO: "Monday", TU: "Tuesday", WE: "Wednesday", 
+                TH: "Thursday", FR: "Friday", SA: "Saturday", SU: "Sunday"
+              };
+              
+              if (days.length === 7) {
+                recurrenceText += " every day";
+              } else if (days.length === 5 && 
+                        ['MO','TU','WE','TH','FR'].every(day => days.includes(day))) {
+                recurrenceText += " every weekday";
+              } else if (days.length === 2 && days.includes('SA') && days.includes('SU')) {
+                recurrenceText += " every weekend";
+              } else {
+                recurrenceText += ` on ${days.map(d => dayNames[d]).join(', ')}`;
+              }
+            }
+          }
+          
+          // Extract end date
+          const untilMatch = recurrenceRule.match(/UNTIL=(\d{8})/);
+          if (untilMatch) {
+            const year = untilMatch[1].substring(0, 4);
+            const month = untilMatch[1].substring(4, 6);
+            const day = untilMatch[1].substring(6, 8);
+            recurrenceText += ` until ${month}/${day}/${year}`;
+          }
+          
+          confirmMsg += `${recurrenceText}\n`;
+        }
+        
         if (parsedEvent.location) confirmMsg += `- 📍 ${parsedEvent.location}\n`;
         if (parsedEvent.description) confirmMsg += `- 📝 ${parsedEvent.description}\n`;
-        confirmMsg += `\nType \`yes\` to confirm or \`no\` to cancel.`;
 
+        // Format confirmation message differently if it's a recurring event
+        const isRecurring = parsedEvent.recurrence && parsedEvent.recurrence.length > 0;
+        
         sessionState[sessionId] = {
           pendingEvent: {
             ...parsedEvent,
