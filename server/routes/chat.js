@@ -184,19 +184,72 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         } else {
           // Group events by day of the week (including weekends)
           const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Set to beginning of today
+          
+          // Get today's day of week (0-6)
+          const todayIdx = today.getDay();
+          
+          // Filter events to only include those from today onward
+          const filteredEvents = events.filter(e => {
+            const eventDate = new Date(e.start.dateTime || e.start.date);
+            return eventDate >= today;
+          });
+          
+          // Group by day of week
           const grouped = {};
-          for (const e of events) {
+          for (const e of filteredEvents) {
             const start = new Date(e.start.dateTime || e.start.date);
             const dayIdx = start.getDay();
             const dayName = daysOfWeek[dayIdx];
-            if (!grouped[dayName]) grouped[dayName] = [];
-            grouped[dayName].push(e);
+            
+            // Only include days from today to Saturday (this week only)
+            if (dayIdx >= todayIdx && dayIdx <= 6) {
+              if (!grouped[dayName]) grouped[dayName] = [];
+              grouped[dayName].push(e);
+            }
           }
-          // Order days as Sunday to Saturday
+          
+          // Determine event type for styling
+          const getEventType = (summary) => {
+            const lowerSummary = summary ? summary.toLowerCase() : '';
+            if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
+              return 'class-event';
+            } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment') || lowerSummary.includes('call')) {
+              return 'meeting-event';
+            } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due') || lowerSummary.includes('assignment')) {
+              return 'deadline-event';
+            } else {
+              return '';
+            }
+          };
+          
+          // Get appropriate emoji for event type
+          const getEventEmoji = (summary) => {
+            const lowerSummary = summary ? summary.toLowerCase() : '';
+            if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
+              return '📚';
+            } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment')) {
+              return '👥';
+            } else if (lowerSummary.includes('call') || lowerSummary.includes('zoom')) {
+              return '📞';
+            } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due')) {
+              return '⏰';
+            } else if (lowerSummary.includes('assignment') || lowerSummary.includes('homework')) {
+              return '📝';
+            } else {
+              return '📌';
+            }
+          };
+          
+          // Create a more visually appealing markdown output for events
           let eventLines = [];
+          eventLines.push('## EVENTS THIS WEEK');
+          
           daysOfWeek.forEach(day => {
             if (grouped[day]) {
-              eventLines.push(`\n---\n#### ${day}`);
+              eventLines.push(`\n\n#### ${day}`);
+              
               grouped[day].forEach((e, idx) => {
                 const start = new Date(e.start.dateTime || e.start.date);
                 const end = new Date(e.end.dateTime || e.end.date);
@@ -208,17 +261,15 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                 const endTime = e.end.dateTime
                   ? end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                   : '';
-                eventLines.push(
-                  `- **${e.summary || 'Untitled Event'}**` +
-                  `\n  > 🗓️ ${dateStr}` +
-                  `\n  > 🕒 ${startTime}${endTime ? ` - ${endTime}` : ''}` +
-                  (e.location ? `\n  > 📍 ${e.location}` : '') +
-                  (e.description ? `\n  > 📝 ${e.description}` : '')
-                );
+                const eventType = getEventType(e.summary);
+                
+                // Create a cleaner, single line format with consistent styling
+                eventLines.push(`- **${e.summary || 'Untitled Event'}** | ${startTime}${endTime ? ` - ${endTime}` : ''} [✏️](command:edit:${e.id}) [🗑️](command:delete:${e.id})`);
               });
             }
           });
-          replyMessage = `📅 **Here are your upcoming events, grouped by day:**\n` + eventLines.join('\n');
+          
+          replyMessage = eventLines.join('\n');
         }
         break;
       }

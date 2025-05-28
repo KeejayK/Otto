@@ -24,7 +24,7 @@
           ]"
         >
           <template v-if="message.role === 'assistant'">
-            <VueMarkdownIt :source="message.content" />
+            <VueMarkdownIt :source="message.content" @click.native="handleMarkdownLinkClick" />
             <!-- Confirmation buttons for event operations -->
             <div v-if="isConfirmationMessage(message.content)" class="confirmation-buttons">
               <button class="confirm-btn" @click="handleConfirmation(true)">
@@ -259,39 +259,25 @@
       
       <!-- Action Panel -->
       <div class="action-panel">
-        <button class="action-pill" @click="toggleQuickActions">
-          <span class="pill-icon">🚀</span>
-          <span>Quick Actions</span>
-          <span class="toggle-icon">{{ isQuickActionsOpen ? '▼' : '▲' }}</span>
+        <button class="action-pill" @click="handleQuickAction('See events this week')">
+          <span class="pill-icon">📅</span>
+          <span>Events this week</span>
+        </button>
+        <button class="action-pill" @click="openInChatForm('Add new event')">
+          <span class="pill-icon">📝</span>
+          <span>Add event</span>
+        </button>
+        <button class="action-pill" @click="openInChatForm('Add recurring event')">
+          <span class="pill-icon">🔁</span>
+          <span>Add recurring</span>
         </button>
         <button class="action-pill clear-history" :disabled="isClearing" @click="clearChatHistory">
           <span class="pill-icon">🗑️</span>
-          <span>{{ isClearing ? 'Clearing...' : 'Clear History' }}</span>
+          <span>{{ isClearing ? 'Clearing...' : 'Clear Chat' }}</span>
         </button>
       </div>
       
-      <!-- Quick Actions Menu (now positioned at the bottom) -->
-      <div v-if="isQuickActionsOpen" class="quick-actions-menu-bottom">
-        <button class="action-btn" @click="handleQuickAction('See events this week')">
-          <div class="action-icon">📅</div>
-          Events this week
-        </button>
-
-        <button class="action-btn" @click="handleQuickAction('Add new event')">
-          <div class="action-icon">📌</div>
-          Add new event
-        </button>
-
-        <button class="action-btn" @click="handleQuickAction('Add recurring event')">
-          <div class="action-icon">🔁</div>
-          Add recurring event
-        </button>
-
-        <button class="action-btn" @click="handleQuickAction('Change current event')">
-          <div class="action-icon">✏️</div>
-          Change current event
-        </button>
-      </div>
+      <!-- Quick Actions Menu removed as requested -->
       
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
@@ -345,7 +331,6 @@ const authStore = useAuthStore();
 const chatHistoryRef = ref(null);
 const userMessage = ref('');
 const chatMessages = ref([]);
-const isQuickActionsOpen = ref(false);
 const iframeKey = ref(0);
 const isLoading = ref(false);
 const isClearing = ref(false);
@@ -466,11 +451,6 @@ const sendMessage = async () => {
     isLoading.value = false;
     scrollToBottom();
   }
-};
-
-// Toggle quick actions menu
-const toggleQuickActions = () => {
-  isQuickActionsOpen.value = !isQuickActionsOpen.value;
 };
 
 // Days of the week mapping
@@ -638,10 +618,8 @@ const handleQuickAction = (action) => {
     // Send message to API
     userMessage.value = action;
     sendMessage();
-    isQuickActionsOpen.value = false;
-  } else if (action === 'Add new event' || action === 'Add recurring event' || action === 'Change current event') {
+  } else if (action === 'Add new event' || action === 'Add recurring event') {
     openInChatForm(action);
-    isQuickActionsOpen.value = false;
   } else {
     chatMessages.value.push({
       role: 'user',
@@ -650,7 +628,6 @@ const handleQuickAction = (action) => {
     
     userMessage.value = action;
     sendMessage();
-    isQuickActionsOpen.value = false;
   }
 };
 
@@ -680,6 +657,30 @@ const clearChatHistory = async () => {
     });
   } finally {
     isClearing.value = false;
+  }
+};
+
+// Handle markdown link clicks for event actions
+const handleMarkdownLinkClick = (event) => {
+  // Check if the click was on a link
+  if (event.target.tagName === 'A') {
+    const href = event.target.getAttribute('href');
+    
+    // Check if this is a command link
+    if (href && href.startsWith('command:')) {
+      event.preventDefault();
+      const [command, action, eventId] = href.split(':');
+      
+      if (action === 'edit') {
+        // Open edit form for the event
+        openInChatForm('Change current event');
+        userMessage.value = `Change event with ID ${eventId}`;
+      } else if (action === 'delete') {
+        // Send delete command
+        userMessage.value = `Delete event with ID ${eventId}`;
+        sendMessage();
+      }
+    }
   }
 };
 
@@ -1018,31 +1019,35 @@ textarea:focus {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   background-color: #f9fafb;
   border-top: 1px solid #edf2f7;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .action-pill {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   padding: 0.6rem 1rem;
   background-color: white;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
   font-size: 0.9rem;
+  font-weight: 500;
   color: #4a5568;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .action-pill:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   background-color: #f7fafc;
+  color: #3182ce;
+  border-color: #bee3f8;
 }
 
 .action-pill.clear-history {
@@ -1061,83 +1066,14 @@ textarea:focus {
 }
 
 .pill-icon {
-  font-size: 1rem;
+  font-size: 0.9rem;
+  display: inline-block;
+  margin-right: 2px;
 }
 
-.toggle-icon {
-  font-size: 0.75rem;
-  margin-left: 0.25rem;
-}
+/* Toggle icon removed as no longer needed */
 
-.quick-actions-menu-bottom {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  background-color: #f8fafc;
-  border-top: 1px solid #edf2f7;
-  border-bottom: 1px solid #edf2f7;
-  animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    max-height: 0;
-    opacity: 0;
-  }
-  to {
-    max-height: 300px;
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    max-height: 0;
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    max-height: 300px;
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  color: #4a5568;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  flex: 1 1 calc(50% - 0.75rem);
-  min-width: 150px;
-}
-
-.action-btn:hover {
-  border-color: #cbd5e0;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.action-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: #ebf8ff;
-  color: #3182ce;
-  font-size: 1rem;
-}
+/* Quick actions menu styles removed as they are no longer needed */
 
 .chat-history {
   flex: 1;
@@ -1209,6 +1145,12 @@ textarea:focus {
   color: #4a5568;
   border: 1px solid #edf2f7;
   border-bottom-left-radius: 4px;
+  font-size: 1rem; /* Set base font size for all content in bot messages */
+}
+
+/* Global rule to ensure ALL elements within bot messages have consistent font size */
+.bot-message * {
+  font-size: 1rem;
 }
 
 .system-message {
@@ -1296,283 +1238,106 @@ textarea:focus {
   max-height: calc(100vh - 2rem);
 }
 
-/* Responsive styles */
-@media (max-width: 1200px) {
-  .home-container {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .home-container {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
-  }
-
-  .action-btn {
-    flex: 1 1 100%;
-  }
-}
-
-/* Form modal styles */
-.in-chat-form {
-  max-width: 95% !important;
-  width: 600px;
-  margin-bottom: 0.5rem;
-  animation: slideInForm 0.3s ease-out;
-}
-
-.in-chat-form h4 {
+/* Unified consistent styles for event list - all font sizes set to 1rem for consistency */
+.bot-message h2 {
   margin-top: 0;
-  margin-bottom: 1rem;
   color: #2d3748;
-  font-size: 1.1rem;
-  border-bottom: 1px solid #e2e8f0;
+  font-size: 1rem;
+  border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
 }
 
-.chat-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.bot-message h3 {
+  color: #4a5568;
+  font-size: 1rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1.2rem;
+  font-weight: 600;
+  background-color: #f7fafc;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border-left: 4px solid #4299e1;
 }
 
-.time-input-group {
+.bot-message ul {
+  margin-top: 0.75rem;
+  margin-left: 1.5rem;
+  padding-left: 0;
+  list-style-type: none;
+}
+
+.bot-message li {
+  margin-bottom: 0.7rem;
+  line-height: 1.5;
+  font-size: 1rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.time-input-group span {
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-.time-input-group input {
-  flex: 1;
-  min-width: 0;
-}
-
-.form-control {
-  padding: 0.6rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  width: 100%;
-  transition: border-color 0.2s;
-  background-color: white;
-}
-
-.form-control:focus {
-  border-color: #4299e1;
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.1);
-  outline: none;
-}
-
-.form-submit-btn,
-.form-cancel-btn {
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.form-submit-btn {
-  background-color: #4299e1;
-  color: white;
-  border: none;
-}
-
-.form-submit-btn:hover {
-  background-color: #3182ce;
-}
-
-.form-cancel-btn {
-  background-color: #edf2f7;
-  color: #4a5568;
-  border: none;
-}
-
-.form-cancel-btn:hover {
-  background-color: #e2e8f0;
-}
-
-@keyframes slideInForm {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.form-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #2d3748;
-}
-
-input[type="text"],
-input[type="date"],
-input[type="time"],
-textarea {
-  padding: 0.75rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  color: #2d3748;
-  transition: border-color 0.2s;
-}
-
-input[type="text"]:focus,
-input[type="date"]:focus,
-input[type="time"]:focus,
-textarea:focus {
-  border-color: #4299e1;
-  outline: none;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.days-selector {
-  display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
+  position: relative;
 }
 
-.day-checkbox {
-  display: flex;
+/* Make events appear as a single line with consistent font */
+.bot-message li strong {
+  font-weight: 600;
+  color: #2d3748;
+  margin-right: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Ensure all text content has consistent font size */
+.bot-message li * {
+  font-size: 1rem !important;
+}
+
+/* Target vue3-markdown-it rendered content */
+.bot-message .vue3-markdown-it p,
+.bot-message .vue3-markdown-it span,
+.bot-message .vue3-markdown-it a,
+.bot-message .vue3-markdown-it strong,
+.bot-message .vue3-markdown-it em,
+.bot-message .vue3-markdown-it code {
+  font-size: 1rem !important;
+}
+
+/* Specifically target any elements that might be used for dates and times */
+.bot-message time,
+.bot-message .time,
+.bot-message .date {
+  font-size: 1rem !important;
+}
+
+/* Icons styling */
+.bot-message a {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #f7fafc;
-  border: 1px solid #e2e8f0;
-  cursor: pointer;
-  font-weight: 500;
-  color: #4a5568;
-  user-select: none;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.day-checkbox input {
-  position: absolute;
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  z-index: 1;
-}
-
-.day-checkbox input:checked + span {
-  color: white;
-}
-
-.day-checkbox input:checked ~ .day-checkbox {
-  background-color: #4299e1;
-  border-color: #4299e1;
-}
-
-.day-checkbox:hover {
-  background-color: #edf2f7;
-}
-
-.day-checkbox input:checked ~ .day-checkbox:hover {
-  background-color: #3182ce;
-}
-
-.day-checkbox input:checked + span::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 50%;
-  background-color: #4299e1;
-  z-index: -1;
-}
-
-.checkbox-input {
-  accent-color: #4299e1;
-}
-
-.submit-btn {
-  background-color: #4299e1;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
-}
-
-.submit-btn:hover {
-  background-color: #3182ce;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
-}
-
-.cancel-btn {
-  background-color: #edf2f7;
-  color: #4a5568;
-  border: none;
-  border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cancel-btn:hover {
-  background-color: #e2e8f0;
-}
-
-/* New styles for confirmation buttons */
-.confirmation-buttons {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.confirm-btn,
-.cancel-btn {
-  background-color: #4299e1;
-  color: white;
-  border: none;
+  text-decoration: none;
+  padding: 0.25rem;
+  background-color: #ebf8ff;
+  color: #3182ce;
   border-radius: 4px;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  cursor: pointer;
+  margin-left: 0.5rem;
+  font-size: 1rem;
   transition: all 0.2s;
+  min-width: 28px;
+  height: 28px;
+  text-align: center;
 }
 
-.confirm-btn:hover,
-.cancel-btn:hover {
-  background-color: #3182ce;
+.bot-message a:hover {
+  background-color: #bee3f8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bot-message a[href^="command:delete"] {
+  background-color: #fff5f5;
+  color: #e53e3e;
+}
+
+.bot-message a[href^="command:delete"]:hover {
+  background-color: #fed7d7;
 }
 </style>
