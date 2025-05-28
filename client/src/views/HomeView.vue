@@ -290,9 +290,10 @@ const formData = ref({
 
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
-  if (!authStore.user?.email) return null;
+  const profile = authStore.getUserProfile();
+  if (!profile?.email) return null;
 
-  const encodedEmail = encodeURIComponent(authStore.user.email);
+  const encodedEmail = encodeURIComponent(profile.email);
   
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
@@ -308,30 +309,57 @@ const isConfirmationMessage = (message) => {
 
 // Handle confirmation button clicks
 const handleConfirmation = (isConfirmed) => {
-  if (isConfirmed) {
-    // For event deletion, we want to avoid showing "yes" in the chat
-    // Check if the message contains a delete confirmation
-    const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
-    const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
-    
-    if (isDeleteConfirmation) {
-      // Don't show "yes" in the chat, just send it to the server
-      userMessage.value = 'yes';
-      
-      // Skip adding the user message to the chat in sendMessage
-      showInChatForm.value = true; // Trick sendMessage into not showing user input
-      sendMessage();
-      showInChatForm.value = false; // Reset after sending
-    } else {
-      // For other confirmations, use the normal flow
-      userMessage.value = 'yes';
-      sendMessage();
-    }
-  } else {
-    // Send 'no' as user message
-    userMessage.value = 'no';
-    sendMessage();
+  const messageText = isConfirmed ? 'yes' : 'no';
+  const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
+  const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
+  
+  // For deletion confirmations, don't show the "yes" in the chat
+  if (!(isConfirmed && isDeleteConfirmation)) {
+    chatMessages.value.push({
+      role: 'user',
+      content: messageText,
+    });
   }
+  
+  // Direct API call instead of using sendMessage
+  isLoading.value = true;
+  
+  chatApi.sendMessage(messageText)
+    .then(response => {
+      console.log('Response from chatApi:', response);
+      
+      if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
+        chatMessages.value.push({
+          role: 'assistant',
+          content: response.data.message + " Would you like to sign in now?",
+        });
+        
+        chatMessages.value.push({
+          role: 'system',
+          content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
+        });
+      } else {
+        chatMessages.value.push({
+          role: 'assistant',
+          content: response.data.message,
+        });
+        
+        if (['create', 'update', 'delete'].includes(response.data.type)) {
+          iframeKey.value += 1;
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error sending confirmation:', error);
+      chatMessages.value.push({
+        role: 'system',
+        content: 'Sorry, I encountered an error processing your confirmation. Please try again.',
+      });
+    })
+    .finally(() => {
+      isLoading.value = false;
+      scrollToBottom();
+    });
 };
 
 // Redirect to login page
@@ -413,8 +441,9 @@ const sendDeleteCommand = async (eventId) => {
   await scrollToBottom();
   
   try {
-    // Send the delete command directly to the API
-    const response = await chatApi.sendMessage(`Delete event with ID ${eventId}`);
+    // Send the delete command directly to the API - but don't display the technical command
+    const messageText = `Delete event with ID ${eventId}`;
+    const response = await chatApi.sendMessage(messageText);
     console.log('Response from chatApi:', response);
     
     // Add the bot's response to the chat
@@ -422,6 +451,12 @@ const sendDeleteCommand = async (eventId) => {
       role: 'assistant',
       content: response.data.message,
     });
+    
+    // Refresh the calendar if event was deleted
+    if (response.data.type === 'delete') {
+      iframeKey.value += 1;
+      await nextTick();
+    }
     
     // Scroll down to show the response
     await scrollToBottom();
@@ -508,7 +543,7 @@ const cancelInChatForm = () => {
 };
 
 // Submit form data
-const submitForm = () => {
+const submitForm = async () => {
   if (!formData.value.eventName) {
     // Add validation message in chat instead of alert
     chatMessages.value.push({
@@ -559,7 +594,7 @@ const submitForm = () => {
     const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${byDayValues.join(',')};UNTIL=${untilDate}T235959Z`;
     
     const daysStr = selectedDays.join(', ');
-    prompt = `Add a recurring event called "${formData.value.eventName}" on ${daysStr} from ${formData.value.startTime} to ${formData.value.endTime} starting from ${formData.value.startDate} until ${formData.value.endDate} with recurrence rule ${rrule}`;
+    prompt = `Add a recurring event called "${formData.value.eventName}" on ${daysStr} from ${formData.value.startTime} to ${formData.value.endTime} starting from ${formData.value.startDate} until ${formData.value.endDate}`;
     
     // Simplified display for user message
     userPromptDisplay = `Add recurring event: "${formData.value.eventName}" on ${daysStr}, ${formData.value.startTime}-${formData.value.endTime}`;
@@ -632,23 +667,108 @@ const submitForm = () => {
       const recurrenceRule = `RRULE:FREQ=WEEKLY;BYDAY=${byDayValues.join(',')};UNTIL=${untilDate}T235959Z`;
       
       // Add recurrence information to the prompt
-      prompt += ` with recurrence rule "${recurrenceRule}"`;
+      prompt += ` with recurrence ${recurrenceRule}`;
     } catch (e) {
       console.error('Error processing recurring event:', e);
     }
   }
   
-  // Send the detailed command to the API
-  userMessage.value = prompt;
-  sendMessage();
+  // Send the detailed command to the API without showing it in the chat
+  const messageText = prompt;
+  userMessage.value = '';
+  isLoading.value = true;
+
+  // No need to add the user message to chat again since we already did that with userPromptDisplay
+  
+  try {
+    const response = await chatApi.sendMessage(messageText);
+    console.log('Response from chatApi:', response);
+
+    // Handle authentication requirements
+    if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.data.message + " Would you like to sign in now?",
+      });
+      
+      // Add sign-in prompt as system message
+      chatMessages.value.push({
+        role: 'system',
+        content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
+      });
+    } else {
+      chatMessages.value.push({
+        role: 'assistant',
+        content: response.data.message,
+      });
+
+      // once event is pushed, refresh calendar iframe
+      if (['create', 'update', 'delete'].includes(response.data.type)) {
+        iframeKey.value += 1;
+        await nextTick();
+      }
+    }
+  } catch (error) {
+    console.error('Error sending message:', error);
+    chatMessages.value.push({
+      role: 'system',
+      content: 'Sorry, I encountered an error. Please try again.',
+    });
+  } finally {
+    isLoading.value = false;
+    await scrollToBottom();
+  }
 };
 
 // Handle quick action button clicks
 const handleQuickAction = (action) => {
   if (action === 'See events this week') {
     // Set message and send to API
-    userMessage.value = action;
-    sendMessage();
+    chatMessages.value.push({
+      role: 'user',
+      content: action
+    });
+    
+    // Now use the direct API sending method
+    const messageText = action;
+    userMessage.value = '';
+    isLoading.value = true;
+    
+    // Call API and handle response
+    chatApi.sendMessage(messageText)
+      .then((response) => {
+        console.log('Response from chatApi:', response);
+        
+        // Handle authentication requirements
+        if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
+          chatMessages.value.push({
+            role: 'assistant',
+            content: response.data.message + " Would you like to sign in now?",
+          });
+          
+          // Add sign-in prompt as system message
+          chatMessages.value.push({
+            role: 'system',
+            content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
+          });
+        } else {
+          chatMessages.value.push({
+            role: 'assistant',
+            content: response.data.message,
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error sending message:', error);
+        chatMessages.value.push({
+          role: 'system',
+          content: 'Sorry, I encountered an error. Please try again.',
+        });
+      })
+      .finally(() => {
+        isLoading.value = false;
+        scrollToBottom();
+      });
   } else if (action === 'Add new event' || action === 'Add recurring event') {
     openInChatForm(action);
   } else {
@@ -657,8 +777,47 @@ const handleQuickAction = (action) => {
       content: action
     });
     
-    userMessage.value = action;
-    sendMessage();
+    // Use the same direct API method as above
+    const messageText = action;
+    userMessage.value = '';
+    isLoading.value = true;
+    
+    chatApi.sendMessage(messageText)
+      .then(response => {
+        console.log('Response from chatApi:', response);
+        
+        if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
+          chatMessages.value.push({
+            role: 'assistant',
+            content: response.data.message + " Would you like to sign in now?",
+          });
+          
+          chatMessages.value.push({
+            role: 'system',
+            content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
+          });
+        } else {
+          chatMessages.value.push({
+            role: 'assistant',
+            content: response.data.message,
+          });
+          
+          if (['create', 'update', 'delete'].includes(response.data.type)) {
+            iframeKey.value += 1;
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error sending message:', error);
+        chatMessages.value.push({
+          role: 'system',
+          content: 'Sorry, I encountered an error. Please try again.',
+        });
+      })
+      .finally(() => {
+        isLoading.value = false;
+        scrollToBottom();
+      });
   }
 };
 

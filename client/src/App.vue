@@ -31,10 +31,14 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const isLoggedIn = computed(() => authStore.isAuthenticated);
-const userName = computed(
-  () => authStore.getUserProfile?.displayName || 'User',
-);
-const userPhoto = computed(() => authStore.getUserProfile?.photoURL);
+const userName = computed(() => {
+  const profile = authStore.getUserProfile();
+  return profile?.displayName || 'User';
+});
+const userPhoto = computed(() => {
+  const profile = authStore.getUserProfile();
+  return profile?.photoURL || '@/assets/default-avatar.svg';
+});
 
 onMounted(async () => {
   // Check if user is already logged in
