@@ -4,46 +4,15 @@
       <div class="panel-header">
         <h2 class="panel-title">otto</h2>
         <div class="panel-actions">
-          <button class="clear-history-btn" :disabled="isClearing" @click="clearChatHistory">
-            {{ isClearing ? 'Clearing...' : 'Clear History' }}
-          </button>
           <div v-if="!authStore.isAuthenticated" class="auth-status">
             <button class="signin-button" @click="navigateToLogin">Sign In</button>
-          </div>
-          <div v-else class="quick-actions-toggle" @click="toggleQuickActions">
-            <span>Quick Actions</span>
-            <span class="toggle-icon">{{ isQuickActionsOpen ? '▲' : '▼' }}</span>
           </div>
         </div>
       </div>
 
-      <div v-if="isQuickActionsOpen" class="quick-actions-menu">
-        <button
-          class="action-btn"
-          @click="handleQuickAction('See events this week')"
-        >
-          <div class="action-icon">📅</div>
-          Events this week
-        </button>
 
-        <button class="action-btn" @click="handleQuickAction('Add new event')">
-          <div class="action-icon">📌</div>
-          Add new event
-        </button>
 
-        <button class="action-btn" @click="handleQuickAction('Add new class')">
-          <div class="action-icon">🔁</div>
-          Add new class
-        </button>
 
-        <button
-          class="action-btn"
-          @click="handleQuickAction('Change current event')"
-        >
-          <div class="action-icon">✏️</div>
-          Change current event
-        </button>
-      </div>
 
       <div ref="chatHistoryRef" class="chat-history">
         <div
@@ -65,10 +34,258 @@
             {{ message.content }}
           </template>
         </div>
+        
+        <!-- In-chat Form: Add Event -->
+        <div v-if="showInChatForm && currentAction === 'Add new event'" class="chat-message bot-message in-chat-form">
+          <h4>Add New Event</h4>
+          <div class="chat-form">
+            <div class="form-group">
+              <label for="eventName">Event Name:</label>
+              <input
+                id="eventName"
+                v-model="formData.eventName"
+                type="text"
+                placeholder="Enter event name"
+                class="form-control"
+                required
+              />
+            </div>
+            
+            <div class="form-group form-row">
+              <div>
+                <label for="startDate">Date:</label>
+                <input
+                  id="startDate"
+                  v-model="formData.startDate"
+                  type="date"
+                  class="form-control"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label>Time:</label>
+                <div class="time-input-group">
+                  <input
+                    id="startTime"
+                    v-model="formData.startTime"
+                    type="time"
+                    class="form-control"
+                  />
+                  <span>to</span>
+                  <input
+                    id="endTime"
+                    v-model="formData.endTime"
+                    type="time"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="location">Location (optional):</label>
+              <input
+                id="location"
+                v-model="formData.location"
+                type="text"
+                placeholder="Enter location"
+                class="form-control"
+              />
+            </div>
+            
+            <div class="form-actions">
+              <button class="form-cancel-btn" @click="cancelInChatForm">Cancel</button>
+              <button class="form-submit-btn" @click="submitForm">Create Event</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- In-chat Form: Add Recurring Event -->
+        <div v-if="showInChatForm && currentAction === 'Add recurring event'" class="chat-message bot-message in-chat-form">
+          <h4>Add Recurring Event</h4>
+          <div class="chat-form">
+            <div class="form-group">
+              <label for="eventName">Event Name:</label>
+              <input
+                id="eventName"
+                v-model="formData.eventName"
+                type="text"
+                placeholder="Enter event name"
+                class="form-control"
+                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label>Days:</label>
+              <div class="days-selector">
+                <label v-for="(label, day) in weekDays" :key="day" class="day-checkbox">
+                  <input
+                    v-model="formData.daysOfWeek[day]"
+                    type="checkbox"
+                  />
+                  <span>{{ label }}</span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="form-group form-row">
+              <div>
+                <label>Time:</label>
+                <div class="time-input-group">
+                  <input
+                    id="startTime"
+                    v-model="formData.startTime"
+                    type="time"
+                    class="form-control"
+                  />
+                  <span>to</span>
+                  <input
+                    id="endTime"
+                    v-model="formData.endTime"
+                    type="time"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group form-row">
+              <div>
+                <label>Start Date:</label>
+                <input
+                  id="startDate"
+                  v-model="formData.startDate"
+                  type="date"
+                  class="form-control"
+                />
+              </div>
+              <div>
+                <label>End Date:</label>
+                <input
+                  id="endDate"
+                  v-model="formData.endDate"
+                  type="date"
+                  class="form-control"
+                />
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button class="form-cancel-btn" @click="cancelInChatForm">Cancel</button>
+              <button class="form-submit-btn" @click="submitForm">Create Event</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- In-chat Form: Change Event -->
+        <div v-if="showInChatForm && currentAction === 'Change current event'" class="chat-message bot-message in-chat-form">
+          <h4>Change Event</h4>
+          <div class="chat-form">
+            <div class="form-group">
+              <label for="eventName">Event Name:</label>
+              <input
+                id="eventName"
+                v-model="formData.eventName"
+                type="text"
+                placeholder="Name of event to change"
+                class="form-control"
+                required
+              />
+            </div>
+            
+            <div class="form-group form-row">
+              <div>
+                <label for="startDate">New Date:</label>
+                <input
+                  id="startDate"
+                  v-model="formData.startDate"
+                  type="date"
+                  class="form-control"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label>New Time:</label>
+                <div class="time-input-group">
+                  <input
+                    id="startTime"
+                    v-model="formData.startTime"
+                    type="time"
+                    class="form-control"
+                  />
+                  <span>to</span>
+                  <input
+                    id="endTime"
+                    v-model="formData.endTime"
+                    type="time"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="location">New Location (optional):</label>
+              <input
+                id="location"
+                v-model="formData.location"
+                type="text"
+                placeholder="Enter location"
+                class="form-control"
+              />
+            </div>
+            
+            <div class="form-actions">
+              <button class="form-cancel-btn" @click="cancelInChatForm">Cancel</button>
+              <button class="form-submit-btn" @click="submitForm">Update Event</button>
+            </div>
+          </div>
+        </div>
+        
         <div v-if="isLoading" class="chat-message bot-message thinking">
           <span class="dot-animation"></span>
         </div>
       </div>
+      
+      <!-- Action Panel -->
+      <div class="action-panel">
+        <button class="action-pill" @click="toggleQuickActions">
+          <span class="pill-icon">🚀</span>
+          <span>Quick Actions</span>
+          <span class="toggle-icon">{{ isQuickActionsOpen ? '▼' : '▲' }}</span>
+        </button>
+        <button class="action-pill clear-history" :disabled="isClearing" @click="clearChatHistory">
+          <span class="pill-icon">🗑️</span>
+          <span>{{ isClearing ? 'Clearing...' : 'Clear History' }}</span>
+        </button>
+      </div>
+      
+      <!-- Quick Actions Menu (now positioned at the bottom) -->
+      <div v-if="isQuickActionsOpen" class="quick-actions-menu-bottom">
+        <button class="action-btn" @click="handleQuickAction('See events this week')">
+          <div class="action-icon">📅</div>
+          Events this week
+        </button>
+
+        <button class="action-btn" @click="handleQuickAction('Add new event')">
+          <div class="action-icon">📌</div>
+          Add new event
+        </button>
+
+        <button class="action-btn" @click="handleQuickAction('Add recurring event')">
+          <div class="action-icon">🔁</div>
+          Add recurring event
+        </button>
+
+        <button class="action-btn" @click="handleQuickAction('Change current event')">
+          <div class="action-icon">✏️</div>
+          Change current event
+        </button>
+      </div>
+      
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
           <input
@@ -126,6 +343,29 @@ const iframeKey = ref(0);
 const isLoading = ref(false);
 const isClearing = ref(false);
 
+// In-chat form state
+const showInChatForm = ref(false);
+const currentAction = ref('');
+const activeFormId = ref(null);
+const formData = ref({
+  eventName: '',
+  startDate: new Date().toISOString().split('T')[0],
+  endDate: new Date().toISOString().split('T')[0],
+  startTime: '09:00',
+  endTime: '10:00',
+  location: '',
+  daysOfWeek: {
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+    sunday: false,
+  },
+  description: ''
+});
+
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
   if (!authStore.user?.email) return null;
@@ -148,11 +388,14 @@ const sendMessage = async () => {
   userMessage.value = '';
   isLoading.value = true;
 
-  // Add user message to chat
-  chatMessages.value.push({
-    role: 'user',
-    content: messageText,
-  });
+  // Add user message to chat only if we're not handling a form submission
+  // (for forms, we already added the nicely formatted user message)
+  if (!showInChatForm.value) {
+    chatMessages.value.push({
+      role: 'user',
+      content: messageText,
+    });
+  }
 
   // Scroll as soon as user sends a message
   await scrollToBottom();
@@ -202,41 +445,184 @@ const toggleQuickActions = () => {
   isQuickActionsOpen.value = !isQuickActionsOpen.value;
 };
 
-// Handle quick action button clicks
-const handleQuickAction = (action) => {
-  userMessage.value = action;
-  sendMessage();
-  isQuickActionsOpen.value = false;
+// Days of the week mapping
+const weekDays = {
+  monday: 'M',
+  tuesday: 'T',
+  wednesday: 'W',
+  thursday: 'T',
+  friday: 'F',
+  saturday: 'S',
+  sunday: 'S'
+};
 
-  if (action === 'Add new class') {
+// Get form title based on current action
+const getFormTitle = () => {
+  return currentAction.value;
+};
+
+// Open in-chat form
+const openInChatForm = (action) => {
+  currentAction.value = action;
+  showInChatForm.value = true;
+  
+  // Add assistant message prompting for the form
+  let formPrompt = "";
+  if (action === "Add new event") {
+    formPrompt = "Please fill out the details for your new event:";
+  } else if (action === "Add recurring event") {
+    formPrompt = "Let's set up your recurring event. Please fill out the details:";
+  } else if (action === "Change current event") {
+    formPrompt = "Please provide the name of the event you'd like to change and the new details:";
+  }
+  
+  chatMessages.value.push({
+    role: 'assistant',
+    content: formPrompt
+  });
+  
+  // Reset form data with defaults for easier entry
+  formData.value = {
+    eventName: '',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days from now
+    startTime: '09:00',
+    endTime: '10:00',
+    location: '',
+    daysOfWeek: {
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false
+    },
+    description: ''
+  };
+  
+  // Scroll to show the form
+  nextTick(() => {
+    scrollToBottom();
+  });
+};
+
+// Cancel in-chat form
+const cancelInChatForm = () => {
+  showInChatForm.value = false;
+  chatMessages.value.push({
+    role: 'assistant',
+    content: "Form canceled. How else can I help you today?"
+  });
+};
+
+// Submit form data
+const submitForm = () => {
+  if (!formData.value.eventName) {
+    // Add validation message in chat instead of alert
     chatMessages.value.push({
-      role: 'assistant',
-      content: [
-        "You can add a new event by saying:",
-        `"Add a class called [Course Name] on [Days of week] from [start time] to [end time] in [location]"`,
-        "For example:",
-        `"Add CSE 446 on Mondays and Wednesdays from 9am to 10am in Kane Hall."`,
-        `"or"`,
-        `"Add a 2 hour Zoom meeting later todat at 4pm."`
-      ].join('\n')
+      role: 'system',
+      content: 'Please enter an event name to continue.'
     });
     scrollToBottom();
-  } else if(action === 'Change current event') {
-    chatMessages.value.push({
-      role: 'assistant',
-      content: [
-        "You can modify an existing event by saying:",
-        `"Change the [Event Name] from [Original Date/Time] to [New Date/Time]"`,
-        "For example:",
-        `"Change the team meeting from June 5th at 3pm to June 6th at 4pm."`,
-        `"or"`,
-        `"The dinner I have tonight at 7pm has been moved to tomorrow night"`
-      ].join('\n')
-    });
+    return;
   }
-  else {
+  
+  let prompt = '';
+  let userPromptDisplay = ''; // This is what will be shown as user message
+  
+  if (currentAction.value === 'Add recurring event') {
+    // Build prompt for recurring event
+    const selectedDays = Object.entries(formData.value.daysOfWeek)
+      .filter(([_, selected]) => selected)
+      .map(([day]) => day);
+    
+    if (selectedDays.length === 0) {
+      // Add validation message in chat
+      chatMessages.value.push({
+        role: 'system',
+        content: 'Please select at least one day of the week.'
+      });
+      scrollToBottom();
+      return;
+    }
+    
+    const daysStr = selectedDays.join(', ');
+    prompt = `Add a recurring event called "${formData.value.eventName}" on ${daysStr} from ${formData.value.startTime} to ${formData.value.endTime} starting from ${formData.value.startDate} until ${formData.value.endDate}`;
+    
+    // Simplified display for user message
+    userPromptDisplay = `Add recurring event: "${formData.value.eventName}" on ${daysStr}, ${formData.value.startTime}-${formData.value.endTime}`;
+    
+    if (formData.value.description) {
+      prompt += ` with description "${formData.value.description}"`;
+    }
+  } else if (currentAction.value === 'Add new event') {
+    // Build prompt for single event
+    prompt = `Add an event called "${formData.value.eventName}" on ${formData.value.startDate} from ${formData.value.startTime} to ${formData.value.endTime}`;
+    
+    // Simplified display for user message
+    userPromptDisplay = `Add event: "${formData.value.eventName}" on ${formData.value.startDate}, ${formData.value.startTime}-${formData.value.endTime}`;
+    
+    if (formData.value.location) {
+      prompt += ` at ${formData.value.location}`;
+      userPromptDisplay += ` at ${formData.value.location}`;
+    }
+    
+    if (formData.value.description) {
+      prompt += ` with description "${formData.value.description}"`;
+    }
+  } else if (currentAction.value === 'Change current event') {
+    // For changing events, we need the event name and new details
+    prompt = `Change the event "${formData.value.eventName}" to ${formData.value.startDate} from ${formData.value.startTime} to ${formData.value.endTime}`;
+    
+    // Simplified display for user message
+    userPromptDisplay = `Change event: "${formData.value.eventName}" to ${formData.value.startDate}, ${formData.value.startTime}-${formData.value.endTime}`;
+    
+    if (formData.value.location) {
+      prompt += ` at ${formData.value.location}`;
+      userPromptDisplay += ` at ${formData.value.location}`;
+    }
+  }
+  
+  // Hide the form
+  showInChatForm.value = false;
+  
+  // Display the simplified command as user message
+  chatMessages.value.push({
+    role: 'user',
+    content: userPromptDisplay
+  });
+  
+  // Send the detailed command to the API
+  userMessage.value = prompt;
+  sendMessage();
+};
+
+// Handle quick action button clicks
+const handleQuickAction = (action) => {
+  if (action === 'See events this week') {
+    // Display user query in chat
+    chatMessages.value.push({
+      role: 'user',
+      content: action
+    });
+    
+    // Send message to API
     userMessage.value = action;
     sendMessage();
+    isQuickActionsOpen.value = false;
+  } else if (action === 'Add new event' || action === 'Add recurring event' || action === 'Change current event') {
+    openInChatForm(action);
+    isQuickActionsOpen.value = false;
+  } else {
+    chatMessages.value.push({
+      role: 'user',
+      content: action
+    });
+    
+    userMessage.value = action;
+    sendMessage();
+    isQuickActionsOpen.value = false;
   }
 };
 
@@ -299,7 +685,156 @@ onMounted(() => {
   overflow: hidden;
   padding: 1rem;
   box-sizing: border-box;
-  background-color: #f7fafc;
+}
+
+/* Form Modal Styles */
+.form-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.form-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 8px 8px 0 0;
+}
+
+.form-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.form-body {
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row > div {
+  flex: 1;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #333;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="time"],
+textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #4a85f6;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 133, 246, 0.2);
+}
+
+.days-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-checkbox {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.day-checkbox input {
+  margin-right: 5px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 1.5rem;
+}
+
+.cancel-btn {
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.submit-btn {
+  background-color: #4a85f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.submit-btn:hover {
+  background-color: #3b76e1;
+}
+
+.cancel-btn:hover {
+  background-color: #e5e5e5;
 }
 
 .calendar-placeholder {
@@ -400,58 +935,70 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
-.clear-history-btn {
-  background-color: #f7fafc;
-  color: #718096;
+.action-panel {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-top: 1px solid #edf2f7;
+}
+
+.action-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background-color: white;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.8rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: #4a5568;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.clear-history-btn:hover:not([disabled]) {
-  background-color: #edf2f7;
-  color: #4a5568;
+.action-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #f7fafc;
 }
 
-.clear-history-btn[disabled] {
+.action-pill.clear-history {
+  background-color: #fff5f5;
+  color: #e53e3e;
+  border-color: #fed7d7;
+}
+
+.action-pill.clear-history:hover:not([disabled]) {
+  background-color: #fed7d7;
+}
+
+.action-pill.clear-history[disabled] {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.quick-actions-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background-color: #ebf8ff;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  color: #3182ce;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.quick-actions-toggle:hover {
-  background-color: #bee3f8;
+.pill-icon {
+  font-size: 1rem;
 }
 
 .toggle-icon {
   font-size: 0.75rem;
+  margin-left: 0.25rem;
 }
 
-.quick-actions-menu {
+.quick-actions-menu-bottom {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   background-color: #f8fafc;
+  border-top: 1px solid #edf2f7;
   border-bottom: 1px solid #edf2f7;
-  max-height: 300px;
-  overflow-y: auto;
-  animation: slideDown 0.3s ease-out;
+  animation: slideUp 0.3s ease-out;
 }
 
 @keyframes slideDown {
@@ -462,6 +1009,19 @@ onMounted(() => {
   to {
     max-height: 300px;
     opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    max-height: 300px;
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -507,7 +1067,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: calc(100% - 180px);
+  max-height: calc(100% - 200px);
   scroll-behavior: smooth;
 }
 
@@ -673,5 +1233,243 @@ onMounted(() => {
   .action-btn {
     flex: 1 1 100%;
   }
+}
+
+/* Form modal styles */
+.in-chat-form {
+  max-width: 95% !important;
+  width: 600px;
+  margin-bottom: 0.5rem;
+  animation: slideInForm 0.3s ease-out;
+}
+
+.in-chat-form h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2d3748;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.time-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-input-group span {
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.time-input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-control {
+  padding: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  width: 100%;
+  transition: border-color 0.2s;
+  background-color: white;
+}
+
+.form-control:focus {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.1);
+  outline: none;
+}
+
+.form-submit-btn,
+.form-cancel-btn {
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.form-submit-btn {
+  background-color: #4299e1;
+  color: white;
+  border: none;
+}
+
+.form-submit-btn:hover {
+  background-color: #3182ce;
+}
+
+.form-cancel-btn {
+  background-color: #edf2f7;
+  color: #4a5568;
+  border: none;
+}
+
+.form-cancel-btn:hover {
+  background-color: #e2e8f0;
+}
+
+@keyframes slideInForm {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="time"],
+textarea {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #2d3748;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+textarea:focus {
+  border-color: #4299e1;
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.days-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.day-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  font-weight: 500;
+  color: #4a5568;
+  user-select: none;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.day-checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.day-checkbox input:checked + span {
+  color: white;
+}
+
+.day-checkbox input:checked ~ .day-checkbox {
+  background-color: #4299e1;
+  border-color: #4299e1;
+}
+
+.day-checkbox:hover {
+  background-color: #edf2f7;
+}
+
+.day-checkbox input:checked ~ .day-checkbox:hover {
+  background-color: #3182ce;
+}
+
+.day-checkbox input:checked + span::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background-color: #4299e1;
+  z-index: -1;
+}
+
+.checkbox-input {
+  accent-color: #4299e1;
+}
+
+.submit-btn {
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+}
+
+.submit-btn:hover {
+  background-color: #3182ce;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
+}
+
+.cancel-btn {
+  background-color: #edf2f7;
+  color: #4a5568;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: #e2e8f0;
 }
 </style>
