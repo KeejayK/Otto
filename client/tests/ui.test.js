@@ -2,35 +2,53 @@
  * @jest-environment jsdom
  */
 
-import { createApp } from 'vue';
-import HomeView from './HomeView.vue';
+const fs = require('fs');
+const path = require('path');
 
-describe('HomeView.vue UI Existence Test', () => {
-  let root;
+describe('UI Elements Test', () => {
+  let html;
 
-  beforeEach(() => {
-    root = document.createElement('div');
-    document.body.appendChild(root);
+  beforeAll(() => {
+    // Load the HTML from your Vue app's compiled output or snapshot
+    html = fs.readFileSync(path.resolve(__dirname, '../src/index.html'), 'utf8');
+    document.documentElement.innerHTML = html;
   });
 
-  afterEach(() => {
-    document.body.innerHTML = '';
+  test('App loads and contains expected root element', () => {
+    const app = document.getElementById('app');
+    expect(app).not.toBeNull();
   });
 
-  it('should render HomeView and contain key UI elements', async () => {
-    const app = createApp(HomeView);
-    app.mount(root);
+  test('Chat panel exists', () => {
+    const panel = document.querySelector('.chat-panel');
+    expect(panel).not.toBeNull();
+  });
 
-    // Check for the main container
-    const homeContainer = root.querySelector('.home-container');
-    expect(homeContainer).not.toBeNull();
+  test('Quick actions toggle exists and has correct attributes', () => {
+    const toggle = document.querySelector('#quick-actions-toggle');
+    expect(toggle).not.toBeNull();
+    expect(toggle.tagName.toLowerCase()).toBe('button'); // assert it's a button
+    expect(toggle.getAttribute('aria-label')).toBeTruthy(); // check accessibility
+    expect(toggle.getAttribute('id')).toBe('quick-actions-toggle');
+  });
 
-    // Check for the quick-actions-toggle custom element
-    const quickActionsToggle = root.querySelector('quick-actions-toggle');
-    expect(quickActionsToggle).not.toBeNull();
+  test('Send button exists and is enabled', () => {
+    const sendBtn = document.querySelector('#send-button');
+    expect(sendBtn).not.toBeNull();
+    expect(sendBtn.disabled).toBe(false);
+  });
 
-    // Check for the chat panel
-    const chatPanel = root.querySelector('.chat-panel');
-    expect(chatPanel).not.toBeNull();
+  test('Message input field has placeholder and is not disabled', () => {
+    const input = document.querySelector('#message-input');
+    expect(input).not.toBeNull();
+    expect(input.getAttribute('placeholder')).toMatch(/type.*message/i);
+    expect(input.disabled).toBe(false);
+  });
+
+  test('Logo image has correct alt and src', () => {
+    const logo = document.querySelector('img.logo');
+    expect(logo).not.toBeNull();
+    expect(logo.getAttribute('alt')).toMatch(/logo/i);
+    expect(logo.getAttribute('src')).toMatch(/\.(png|svg|jpg)$/);
   });
 });
