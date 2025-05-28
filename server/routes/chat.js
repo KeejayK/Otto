@@ -150,11 +150,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `Please confirm: Update "${pending.title}" at ${pending.start} - ${pending.end}${pending.location ? ' in ' + pending.location : ''}? (yes/no)`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `Please confirm: Delete event "${pending.title}" at ${pending.start} - ${pending.end}${pending.location ? ' in ' + pending.location : ''}? (yes/no)`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete event **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           } else {
-            replyMessage = `Please confirm: "${pending.title}" at ${pending.start} - ${pending.end}${pending.location ? ' in ' + pending.location : ''}. Add to calendar? (yes/no)`;
+            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
           }
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -288,7 +288,7 @@ case 'update': {
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -347,7 +347,7 @@ case 'update': {
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nType \`yes\` to confirm or \`no\` to cancel.`;
+        replyMessage = `❓ **Please confirm:**\n\nDelete event **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -474,7 +474,6 @@ case 'update': {
         confirmMsg += `- 🕒 ${startTime} - ${endTime}\n`;
         if (parsedEvent.location) confirmMsg += `- 📍 ${parsedEvent.location}\n`;
         if (parsedEvent.description) confirmMsg += `- 📝 ${parsedEvent.description}\n`;
-        confirmMsg += `\nType \`yes\` to confirm or \`no\` to cancel.`;
 
         sessionState[sessionId] = {
           pendingEvent: {

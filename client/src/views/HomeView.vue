@@ -10,10 +10,6 @@
         </div>
       </div>
 
-
-
-
-
       <div ref="chatHistoryRef" class="chat-history">
         <div
           v-for="(message, index) in chatMessages"
@@ -29,6 +25,17 @@
         >
           <template v-if="message.role === 'assistant'">
             <VueMarkdownIt :source="message.content" />
+            <!-- Confirmation buttons for event operations -->
+            <div v-if="isConfirmationMessage(message.content)" class="confirmation-buttons">
+              <button class="confirm-btn" @click="handleConfirmation(true)">
+                <span class="button-icon">✅</span>
+                Confirm
+              </button>
+              <button class="cancel-btn" @click="handleConfirmation(false)">
+                <span class="button-icon">❌</span>
+                Cancel
+              </button>
+            </div>
           </template>
           <template v-else>
             {{ message.content }}
@@ -375,6 +382,27 @@ const calendarUrl = computed(() => {
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
+// Function to check if a message is requesting confirmation
+const isConfirmationMessage = (message) => {
+  return message && (
+    message.includes('Please confirm:') ||
+    message.includes('**Please confirm:**') ||
+    message.includes('Confirm the following event:')
+  );
+};
+
+// Handle confirmation button clicks
+const handleConfirmation = (isConfirmed) => {
+  if (isConfirmed) {
+    // Send 'yes' as user message
+    userMessage.value = 'yes';
+  } else {
+    // Send 'no' as user message
+    userMessage.value = 'no';
+  }
+  sendMessage();
+};
+
 // Redirect to login page
 const navigateToLogin = () => {
   router.push('/login');
@@ -685,6 +713,57 @@ onMounted(() => {
   overflow: hidden;
   padding: 1rem;
   box-sizing: border-box;
+}
+
+/* Confirmation Button Styles */
+.confirmation-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.confirm-btn, .cancel-btn {
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-icon {
+  font-size: 16px;
+}
+
+.confirm-btn {
+  background-color: #4285f4;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background-color: #3b78e7;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.cancel-btn {
+  background-color: #f1f3f4;
+  color: #5f6368;
+}
+
+.cancel-btn:hover {
+  background-color: #e8eaed;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.confirm-btn:active, .cancel-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* Form Modal Styles */
@@ -1471,5 +1550,29 @@ textarea {
 
 .cancel-btn:hover {
   background-color: #e2e8f0;
+}
+
+/* New styles for confirmation buttons */
+.confirmation-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.confirm-btn,
+.cancel-btn {
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirm-btn:hover,
+.cancel-btn:hover {
+  background-color: #3182ce;
 }
 </style>
