@@ -48,7 +48,7 @@ async function initializeGoogleCalendar(uid) {
 router.post('/add-event', verifyFirebaseToken, async (req, res) => {
   console.log(`POST /api/calendar/add-event`);
   const uid = req.user.uid;
-  const { summary, location, description, start, end } = req.body;
+  const { summary, location, description, start, end, recurrence } = req.body;
 
   // Validate required fields
   if (!summary || !start || !end) {
@@ -76,6 +76,11 @@ router.post('/add-event', verifyFirebaseToken, async (req, res) => {
       start: { dateTime: isoStart, timeZone: 'America/Los_Angeles' },
       end: { dateTime: isoEnd, timeZone: 'America/Los_Angeles' },
     };
+    
+    // Add recurrence rule if provided
+    if (recurrence && Array.isArray(recurrence) && recurrence.length > 0) {
+      event.recurrence = recurrence;
+    }
 
     // Insert the event
     const response = await calendar.events.insert({

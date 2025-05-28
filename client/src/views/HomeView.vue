@@ -538,8 +538,28 @@ const submitForm = () => {
       return;
     }
     
+    // Map selected days to RRULE format (MO, TU, WE, etc.)
+    const dayMap = {
+      monday: 'MO',
+      tuesday: 'TU',
+      wednesday: 'WE',
+      thursday: 'TH',
+      friday: 'FR',
+      saturday: 'SA',
+      sunday: 'SU'
+    };
+    
+    // Convert selected days to BYDAY values for RRULE
+    const byDayValues = selectedDays.map(day => dayMap[day.toLowerCase()]);
+    
+    // Format the end date in RRULE format (YYYYMMDD)
+    const untilDate = formData.value.endDate.replace(/-/g, '');
+    
+    // Create an RRULE string for Google Calendar
+    const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${byDayValues.join(',')};UNTIL=${untilDate}T235959Z`;
+    
     const daysStr = selectedDays.join(', ');
-    prompt = `Add a recurring event called "${formData.value.eventName}" on ${daysStr} from ${formData.value.startTime} to ${formData.value.endTime} starting from ${formData.value.startDate} until ${formData.value.endDate}`;
+    prompt = `Add a recurring event called "${formData.value.eventName}" on ${daysStr} from ${formData.value.startTime} to ${formData.value.endTime} starting from ${formData.value.startDate} until ${formData.value.endDate} with recurrence rule ${rrule}`;
     
     // Simplified display for user message
     userPromptDisplay = `Add recurring event: "${formData.value.eventName}" on ${daysStr}, ${formData.value.startTime}-${formData.value.endTime}`;

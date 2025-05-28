@@ -107,6 +107,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                   description: pending.description,
                   start: pending.start,
                   end: pending.end,
+                  recurrence: pending.recurrence || null,
                 },
                 { headers: { Authorization: authHeader } }
               );
@@ -515,6 +516,12 @@ case 'update': {
         let invalidFields = [];
         if (parsedEvent.start && isNaN(Date.parse(parsedEvent.start))) invalidFields.push('start');
         if (parsedEvent.end && isNaN(Date.parse(parsedEvent.end))) invalidFields.push('end');
+        
+        // Process recurrence field if it exists
+        if (parsedEvent.recurrence && !Array.isArray(parsedEvent.recurrence)) {
+          parsedEvent.recurrence = [parsedEvent.recurrence];
+        }
+        
         if (invalidFields.length) {
           sessionState[sessionId] = {
             pendingEvent: {
@@ -539,9 +546,58 @@ case 'update': {
         let confirmMsg = `✅ **Confirm the following event:**\n\n`;
         confirmMsg += `**${parsedEvent.title}** (${dayOfWeek} - ${monthDay})\n`;
         confirmMsg += `- 🕒 ${startTime} - ${endTime}\n`;
+        
+        // Add recurring info to confirmation message if relevant
+        if (parsedEvent.recurrence && parsedEvent.recurrence.length > 0) {
+          // Extract recurrence information for display
+          const recurrenceRule = parsedEvent.recurrence[0];
+          let recurrenceText = "- 🔁 Repeats ";
+          
+          if (recurrenceRule.includes("FREQ=DAILY")) {
+            recurrenceText += "daily";
+          } else if (recurrenceRule.includes("FREQ=WEEKLY")) {
+            recurrenceText += "weekly";
+            
+            // Extract days
+            const bydayMatch = recurrenceRule.match(/BYDAY=([^;]+)/);
+            if (bydayMatch) {
+              const days = bydayMatch[1].split(',');
+              const dayNames = {
+                MO: "Monday", TU: "Tuesday", WE: "Wednesday", 
+                TH: "Thursday", FR: "Friday", SA: "Saturday", SU: "Sunday"
+              };
+              
+              if (days.length === 7) {
+                recurrenceText += " every day";
+              } else if (days.length === 5 && 
+                        ['MO','TU','WE','TH','FR'].every(day => days.includes(day))) {
+                recurrenceText += " every weekday";
+              } else if (days.length === 2 && days.includes('SA') && days.includes('SU')) {
+                recurrenceText += " every weekend";
+              } else {
+                recurrenceText += ` on ${days.map(d => dayNames[d]).join(', ')}`;
+              }
+            }
+          }
+          
+          // Extract end date
+          const untilMatch = recurrenceRule.match(/UNTIL=(\d{8})/);
+          if (untilMatch) {
+            const year = untilMatch[1].substring(0, 4);
+            const month = untilMatch[1].substring(4, 6);
+            const day = untilMatch[1].substring(6, 8);
+            recurrenceText += ` until ${month}/${day}/${year}`;
+          }
+          
+          confirmMsg += `${recurrenceText}\n`;
+        }
+        
         if (parsedEvent.location) confirmMsg += `- 📍 ${parsedEvent.location}\n`;
         if (parsedEvent.description) confirmMsg += `- 📝 ${parsedEvent.description}\n`;
 
+        // Format confirmation message differently if it's a recurring event
+        const isRecurring = parsedEvent.recurrence && parsedEvent.recurrence.length > 0;
+        
         sessionState[sessionId] = {
           pendingEvent: {
             ...parsedEvent,

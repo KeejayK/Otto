@@ -42,7 +42,14 @@ INTERPRETATION RULES:
 
 4. For recurring events mentions:
    - Check for patterns like "every Monday", "weekly", "daily", etc.
-   - If recurring pattern detected, note it in description field, but still provide a specific start date
+   - For recurring events, include a "recurrence" array field in the response containing RRULE strings (https://tools.ietf.org/html/rfc5545#section-3.8.5)
+   - Examples:
+     - For "every Monday": ["RRULE:FREQ=WEEKLY;BYDAY=MO"]
+     - For "every Monday and Wednesday": ["RRULE:FREQ=WEEKLY;BYDAY=MO,WE"]
+     - For "every weekday": ["RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"]
+     - For "every day": ["RRULE:FREQ=DAILY"]
+     - If there is an end date, include "UNTIL=YYYYMMDD" in the RRULE
+   - Still provide specific start and end times for the first occurrence
 
 Message: "${userInput}"
 
