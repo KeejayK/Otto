@@ -7,9 +7,10 @@
         </div>
         <h1 class="login-title">Welcome to Otto</h1>
         <p class="login-subtitle">Your AI Calendar Assistant</p>
-        <button class="login-button" @click="loginWithGoogle">
-          <img src="@/assets/google-logo.svg" alt="Google" class="google-icon" />
-          Sign in with Google
+        <button class="login-button" :disabled="isLoading" @click="loginWithGoogle">
+          <span v-if="isLoading" class="loading-spinner"></span>
+          <img v-else src="@/assets/google-logo.svg" alt="Google" class="google-icon" />
+          <span>{{ isLoading ? 'Signing in...' : 'Sign in with Google' }}</span>
         </button>
         <p class="login-info">
           Otto needs access to your Google Calendar to help you manage your schedule.
@@ -60,19 +61,24 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const isLoading = ref(false);
 
 const loginWithGoogle = async () => {
+  isLoading.value = true;
   try {
     await authStore.login();
     router.push('/home');
   } catch (error) {
     console.error('Login error:', error);
     alert('Google Sign-In failed. Please try again.');
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -190,7 +196,14 @@ const loginWithGoogle = async () => {
   overflow: hidden;
 }
 
-.login-button:hover {
+.login-button:disabled {
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.25);
+}
+
+.login-button:hover:not(:disabled) {
   background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
   box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
   transform: translateY(-2px);
@@ -416,6 +429,27 @@ const loginWithGoogle = async () => {
   }
   100% {
     left: 200%;
+  }
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation: spinner 0.8s linear infinite;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
   }
 }
 
