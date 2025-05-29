@@ -2,8 +2,19 @@
   <div class="home-container">
     <div class="chat-panel">
       <div class="panel-header">
-        <h2 class="panel-title">otto</h2>
+        <div class="panel-title">
+          <span>Otto</span>
+        </div>
         <div class="panel-actions">
+          <button 
+            class="clear-chat-button" 
+            :disabled="isClearing || chatMessages.length <= 1" 
+            title="Clear chat history"
+            @click="clearChatHistory"
+          >
+            <span class="clear-icon">🗑️</span>
+            <span>{{ isClearing ? 'Clearing...' : 'Clear' }}</span>
+          </button>
           <div v-if="!authStore.isAuthenticated" class="auth-status">
             <button class="signin-button" @click="navigateToLogin">Sign In</button>
           </div>
@@ -41,11 +52,11 @@
         </div>
          
         <!-- In-chat Form: Add Recurring Event -->
-        <div v-if="showInChatForm && currentAction === 'Add recurring event'" class="chat-message bot-message in-chat-form">
+        <div v-if="showInChatForm && currentAction === 'Add recurring event'" class="chat-message bot-message in-chat-form compact-form">
           <h4>Add Recurring Event</h4>
           <div class="chat-form">
-            <div class="form-group">
-              <label for="eventName">Event Name:</label>
+            <div class="form-group compact">
+              <label for="eventName">Event Name</label>
               <input
                 id="eventName"
                 v-model="formData.eventName"
@@ -56,62 +67,64 @@
               />
             </div>
             
-            <div class="form-group">
-              <label>Days:</label>
-              <div class="days-selector">
-                <label v-for="(label, day) in weekDays" :key="day" class="day-checkbox">
-                  <input
-                    v-model="formData.daysOfWeek[day]"
-                    type="checkbox"
-                  />
-                  <span>{{ label }}</span>
-                </label>
+            <div class="days-time-container">
+              <div class="form-group days-group compact">
+                <label>Repeat on</label>
+                <div class="days-selector compact">
+                  <label v-for="(label, day) in weekDays" :key="day" class="day-checkbox compact">
+                    <input
+                      v-model="formData.daysOfWeek[day]"
+                      type="checkbox"
+                    />
+                    <span>{{ label }}</span>
+                  </label>
+                </div>
               </div>
-            </div>
-            
-            <div class="form-group form-row">
-              <div>
-                <label>Time:</label>
-                <div class="time-input-group">
+              
+              <div class="form-group time-group compact">
+                <label>Time</label>
+                <div class="time-input-group compact">
                   <input
                     id="startTime"
                     v-model="formData.startTime"
                     type="time"
-                    class="form-control"
+                    class="form-control time-input"
                   />
-                  <span>to</span>
+                  <span class="time-separator">to</span>
                   <input
                     id="endTime"
                     v-model="formData.endTime"
                     type="time"
-                    class="form-control"
+                    class="form-control time-input"
                   />
                 </div>
               </div>
             </div>
             
-            <div class="form-group form-row">
-              <div>
-                <label>Start Date:</label>
-                <input
-                  id="startDate"
-                  v-model="formData.startDate"
-                  type="date"
-                  class="form-control"
-                />
-              </div>
-              <div>
-                <label>End Date:</label>
-                <input
-                  id="endDate"
-                  v-model="formData.endDate"
-                  type="date"
-                  class="form-control"
-                />
+            <div class="form-group date-range compact">
+              <div class="date-from-to">
+                <div>
+                  <label for="startDate">From</label>
+                  <input
+                    id="startDate"
+                    v-model="formData.startDate"
+                    type="date"
+                    class="form-control date-input"
+                  />
+                </div>
+                <div>
+                  <label for="endDate">Until</label>
+                  <input
+                    id="endDate"
+                    v-model="formData.endDate"
+                    type="date"
+                    class="form-control date-input"
+                  />
+                </div>
               </div>
             </div>
             
-            <div class="form-actions">
+            <div class="form-actions compact">
               <button class="form-cancel-btn" @click="cancelInChatForm">Cancel</button>
               <button class="form-submit-btn" @click="submitForm">Create Event</button>
             </div>
@@ -189,21 +202,7 @@
         </div>
       </div>
       
-      <!-- Action Panel -->
-      <div class="action-panel">
-        <button class="action-pill" @click="handleQuickAction('See events this week')">
-          <span class="pill-icon">📅</span>
-          <span>Events this week</span>
-        </button>
-        <button class="action-pill" @click="openInChatForm('Add recurring event')">
-          <span class="pill-icon">🔁</span>
-          <span>Add recurring</span>
-        </button>
-        <button class="action-pill clear-history" :disabled="isClearing" @click="clearChatHistory">
-          <span class="pill-icon">🗑️</span>
-          <span>{{ isClearing ? 'Clearing...' : 'Clear Chat' }}</span>
-        </button>
-      </div>
+      <!-- Chat input area without action panel -->
       
       <!-- Quick Actions Menu removed as requested -->
       
@@ -901,12 +900,12 @@ onMounted(() => {
 .home-container {
   display: grid;
   grid-template-columns: 1fr 1.5fr;
-  gap: 2rem;
-  height: 100vh;
+  gap: 0.75rem;
+  height: calc(100vh - 4.5rem);
   width: 100%;
-  max-height: 100vh;
+  max-height: calc(100vh - 4.5rem);
   overflow: hidden;
-  padding: 1.5rem;
+  padding: 0;
   box-sizing: border-box;
   background: linear-gradient(120deg, #f0f7ff 0%, #e6f0fd 100%);
 }
@@ -1031,11 +1030,11 @@ onMounted(() => {
 }
 
 .form-body {
-  padding: 1.75rem;
+  padding: 0.9rem;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
 }
 
 .form-row {
@@ -1049,10 +1048,10 @@ onMounted(() => {
 
 label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
   font-weight: 600;
   color: #334155;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 input[type="text"],
@@ -1060,10 +1059,10 @@ input[type="date"],
 input[type="time"],
 textarea {
   width: 100%;
-  padding: 0.85rem;
+  padding: 0.6rem;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   box-sizing: border-box;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) inset;
   transition: all 0.2s ease;
@@ -1172,17 +1171,17 @@ textarea:focus {
   left: 0;
   width: 100%;
   height: 100%;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230ea5e9' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230ea5e9' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM36 0V4h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   opacity: 0.5;
   z-index: 1;
 }
 
 .auth-prompt {
   text-align: center;
-  padding: 2.5rem;
+  padding: 1.5rem;
   background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 15px 35px rgba(66, 153, 225, 0.15), 0 5px 15px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(66, 153, 225, 0.15), 0 4px 10px rgba(0, 0, 0, 0.08);
   max-width: 80%;
   z-index: 2;
   position: relative;
@@ -1191,8 +1190,8 @@ textarea:focus {
 
 .auth-prompt h3 {
   color: #1e40af;
-  margin-bottom: 1rem;
-  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
   background: linear-gradient(90deg, #1e40af, #0097b2);
   background-clip: text;
   -webkit-background-clip: text;
@@ -1203,12 +1202,12 @@ textarea:focus {
   background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
   color: white;
   border: none;
-  border-radius: 12px;
-  padding: 0.85rem 1.5rem;
-  font-size: 1.1rem;
+  border-radius: 10px;
+  padding: 0.7rem 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 1.75rem;
+  margin-top: 1rem;
   transition: all 0.25s;
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
   position: relative;
@@ -1265,9 +1264,9 @@ textarea:focus {
 .calendar-wrapper {
   height: 100%;
   width: 100%;
-  border-radius: 18px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 12px 28px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 20px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
   background-color: white;
   transition: all 0.3s ease;
 }
@@ -1276,17 +1275,17 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   background-color: white;
-  border-radius: 18px;
-  box-shadow: 0 12px 28px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   height: 100%;
-  max-height: calc(100vh - 3rem);
+  max-height: 100%;
   transition: all 0.3s ease;
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .panel-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.6rem 1rem;
   border-bottom: 1px solid #edf2f7;
   display: flex;
   justify-content: space-between;
@@ -1303,7 +1302,11 @@ textarea:focus {
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  display: flex;
+  align-items: center;
 }
+
+/* Otto logo styling removed */
 
 .panel-actions {
   display: flex;
@@ -1311,80 +1314,58 @@ textarea:focus {
   gap: 0.75rem;
 }
 
-.action-panel {
-  display: flex;
-  justify-content: right;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background-color: #f8fafc;
-  border-top: 1px solid #edf2f7;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.05);
-}
-
-.action-pill {
+.clear-chat-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1.2rem;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 0.95rem;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  color: #e53e3e;
   cursor: pointer;
   transition: all 0.25s ease-in-out;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.action-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-  background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
-  color: #0284c7;
-  border-color: #bae6fd;
-}
-
-.action-pill.clear-history {
-  background-color: #fff5f5;
-  color: #e53e3e;
-  border-color: #fed7d7;
-}
-
-.action-pill.clear-history:hover:not([disabled]) {
+.clear-chat-button:hover:not([disabled]) {
   background-color: #fed7d7;
   transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(229, 62, 62, 0.15);
 }
 
-.action-pill.clear-history[disabled] {
+.clear-chat-button[disabled] {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.pill-icon {
+.clear-icon {
   font-size: 1.1rem;
   display: inline-block;
 }
 
+/* Action panel styles removed */
+
 .chat-history {
   flex: 1;
-  padding: 1.25rem;
+  padding: 0.75rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-height: calc(100% - 200px);
+  gap: 0.75rem;
+  max-height: calc(100% - 100px); /* Adjusted height since action panel was removed */
   scroll-behavior: smooth;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .chat-message {
-  padding: 1rem 1.25rem;
-  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
   max-width: 85%;
   word-break: break-word;
-  line-height: 1.5;
+  line-height: 1.4;
   animation: fadeIn 0.3s ease-out;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
@@ -1476,16 +1457,16 @@ textarea:focus {
 
 .in-chat-form {
   max-width: 90%;
-  padding: 1.25rem;
+  padding: 0.75rem;
   background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .in-chat-form h4 {
   margin-top: 0;
   color: #0369a1;
-  font-size: 1.1rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -1504,8 +1485,8 @@ textarea:focus {
 .chat-input-container {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-top: 1px solid #edf2f7;
   background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
 }
@@ -1528,10 +1509,10 @@ textarea:focus {
 
 .chat-input {
   flex: 1;
-  padding: 0.85rem 1.25rem;
+  padding: 0.6rem 0.75rem;
   border: none;
   background: transparent;
-  font-size: 1rem;
+  font-size: 0.95rem;
   outline: none;
   color: #334155;
 }
@@ -1544,8 +1525,8 @@ textarea:focus {
   background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
   color: white;
   border: none;
-  border-radius: 12px;
-  padding: 0.85rem 1.5rem;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s;
@@ -1689,32 +1670,29 @@ textarea:focus {
   .home-container {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
+    height: calc(100vh - 3.5rem);
+    max-height: calc(100vh - 3.5rem);
   }
   
   .chat-panel, .calendar-wrapper {
-    height: calc(50vh - 2rem);
+    height: calc(50vh - 1.5rem);
     max-height: none;
   }
   
   .calendar-placeholder {
-    height: calc(50vh - 2rem);
+    height: calc(50vh - 1.5rem);
   }
 }
 
 @media (max-width: 640px) {
   .home-container {
-    padding: 1rem;
-    gap: 1rem;
+    padding: 0;
+    gap: 0.5rem;
   }
   
   .chat-message {
     max-width: 90%;
-    padding: 0.75rem 1rem;
-  }
-  
-  .action-pill {
-    padding: 0.6rem 1rem;
-    font-size: 0.85rem;
+    padding: 0.6rem 0.8rem;
   }
   
   .form-row {
@@ -1733,5 +1711,98 @@ textarea:focus {
   .auth-prompt {
     padding: 1.5rem;
   }
+}
+
+/* Compact Recurring Event Form Styles */
+.compact-form {
+  width: 95%;
+  padding: 1rem 1.15rem;
+}
+
+.compact-form h4 {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+
+.form-group.compact {
+  margin-bottom: 0.75rem;
+}
+
+.form-group.compact label {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.days-time-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-group.days-group {
+  flex: 1.5;
+}
+
+.form-group.time-group {
+  flex: 1;
+}
+
+.days-selector.compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 0.25rem;
+}
+
+.day-checkbox.compact {
+  padding: 4px 6px;
+  border-radius: 12px;
+  margin-right: 2px;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+}
+
+.time-input-group.compact {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.time-separator {
+  font-size: 0.85rem;
+  color: #64748b;
+  padding: 0 2px;
+}
+
+.time-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.date-range.compact {
+  margin-bottom: 0.75rem;
+}
+
+.date-from-to {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.date-from-to > div {
+  flex: 1;
+}
+
+.date-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.form-actions.compact {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 </style>

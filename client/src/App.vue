@@ -5,14 +5,27 @@
         <img src="@/assets/logo.png" alt="Otto" />
       </div>
       <div v-if="isLoggedIn" class="user-profile">
-        <span class="user-name">{{ userName }}</span>
-        <img
-          :src="userPhoto || '@/assets/default-avatar.svg'"
-          alt="Profile"
-          class="avatar"
-        />
-
-        <button class="logout-btn" @click="logout">Logout</button>
+        <div ref="profileDropdownRef" class="profile-container" @click="toggleDropdown">
+          <span class="user-name">{{ userName }}</span>
+          <img
+            :src="userPhoto || '@/assets/default-avatar.svg'"
+            alt="Profile"
+            class="avatar"
+          />
+          <span class="dropdown-arrow" :class="{ 'dropdown-arrow-open': isDropdownOpen }">▼</span>
+          
+          <!-- Dropdown menu -->
+          <div v-if="isDropdownOpen" class="profile-dropdown">
+            <div class="dropdown-item" @click="logout">
+              <svg class="dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Logout</span>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -23,7 +36,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
@@ -45,6 +58,22 @@ const userPhoto = computed(() => {
 onMounted(async () => {
   // Check if user is already logged in
   authStore.initialize();
+});
+
+const isDropdownOpen = ref(false);
+const profileDropdownRef = ref(null);
+
+const toggleDropdown = () => {
+  isDropdownOpen.value = !isDropdownOpen.value;
+};
+
+// Close dropdown when clicking outside
+onMounted(() => {
+  document.addEventListener('click', (event) => {
+    if (profileDropdownRef.value && !profileDropdownRef.value.contains(event.target)) {
+      isDropdownOpen.value = false;
+    }
+  });
 });
 
 const logout = async () => {
@@ -82,53 +111,52 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.3rem 2rem;
+  padding: 0.3rem 1.5rem;
   background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  height: 3.5rem;
 }
 
 .logo img {
-  height: 8rem;
+  height: 2.8rem;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  position: relative;
 }
 
 .user-name {
   font-weight: 500;
   color: #4a5568;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.profile-container:hover .user-name {
+  color: #0284c7;
 }
 
 .avatar {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
 
-.logout-btn {
-  background: none;
-  border: none;
-  color: #718096;
-  cursor: pointer;
-  margin-left: 0.5rem;
-  padding: 0.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.profile-container:hover .avatar {
+  border-color: #cbd5e1;
 }
 
-.logout-btn:hover {
-  color: #4299e1;
-}
+/* Styles for logout button removed as it's now part of the dropdown */
 
 .app-main {
   flex: 1;
-  padding: 2rem;
+  padding: 0.75rem;
 }
 
 .app-main.no-header {
@@ -166,5 +194,91 @@ body {
 
 .btn-outline:hover {
   background-color: #ebf8ff;
+}
+
+/* Profile Dropdown Styles */
+.profile-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #f8fafc;
+  border: 1px solid transparent;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.profile-container:hover {
+  background-color: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  color: #64748b;
+  transition: transform 0.2s ease;
+  margin-left: 0.1rem;
+  margin-top: 0.1rem;
+}
+
+.dropdown-arrow-open {
+  transform: rotate(180deg);
+  color: #0284c7;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 180px;
+  z-index: 100;
+  overflow: hidden;
+  animation: dropdown-fade 0.2s ease-out;
+  border: 1px solid #e2e8f0;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+  color: #4a5568;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.dropdown-item:hover {
+  background-color: #f0f9ff;
+  color: #0284c7;
+}
+
+.dropdown-icon {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+  transition: color 0.2s ease;
+}
+
+.dropdown-item:hover .dropdown-icon {
+  color: #0284c7;
+}
+
+@keyframes dropdown-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
