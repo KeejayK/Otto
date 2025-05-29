@@ -3,6 +3,12 @@ import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 export async function loginWithGoogle() {
   const auth = getAuth();
   const provider = new GoogleAuthProvider();
+  
+  // Add profile and email scopes
+  provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+  provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+  
+  // Add calendar scopes
   provider.addScope('https://www.googleapis.com/auth/calendar');
   provider.addScope('https://www.googleapis.com/auth/calendar.events');
 

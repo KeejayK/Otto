@@ -17,6 +17,7 @@ export const useAuthStore = defineStore('auth', {
     idToken: null,
     accessToken: null,
     calendarAccess: false,
+    userProfile: null, // Add userProfile to store user's name and picture
   }),
   actions: {
     async login() {
@@ -24,6 +25,16 @@ export const useAuthStore = defineStore('auth', {
       this.user = user;
       this.idToken = idToken;
       this.accessToken = accessToken;
+      
+      // Extract and save the user profile information
+      if (user) {
+        this.userProfile = {
+          displayName: user.displayName || '',
+          email: user.email || '',
+          photoURL: user.photoURL || '',
+          uid: user.uid
+        };
+      }
 
       const response = await fetch('http://localhost:3000/api/auth/google', {
         method: 'POST',
@@ -31,7 +42,10 @@ export const useAuthStore = defineStore('auth', {
           Authorization: `Bearer ${idToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ accessToken }),
+        body: JSON.stringify({ 
+          accessToken,
+          profile: this.userProfile // Send profile info to the server
+        }),
       });
 
       if (response.ok) {
@@ -70,10 +84,11 @@ export const useAuthStore = defineStore('auth', {
       this.idToken = null;
       this.accessToken = null;
       this.calendarAccess = false;
+      this.userProfile = null;
     },
 
     getUserProfile() {
-      return this.user;
+      return this.userProfile || this.user;
     },
 
     get isAuthenticated() {
@@ -89,13 +104,20 @@ export const useAuthStore = defineStore('auth', {
         if (user) {
           this.user = user;
           this.idToken = await user.getIdToken();
-          // Don't automatically request calendar access
-          // Let components request it when needed
+          
+          // Store user profile information when session is initialized
+          this.userProfile = {
+            displayName: user.displayName || '',
+            email: user.email || '',
+            photoURL: user.photoURL || '',
+            uid: user.uid
+          };
         } else {
           this.user = null;
           this.idToken = null;
           this.accessToken = null;
           this.calendarAccess = false;
+          this.userProfile = null;
         }
       });
     },

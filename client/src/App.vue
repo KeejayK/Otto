@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <header class="app-header">
+    <header v-if="!isLoginPage" class="app-header">
       <div class="logo">
         <img src="@/assets/logo.png" alt="Otto" />
       </div>
@@ -16,7 +16,7 @@
       </div>
     </header>
 
-    <main class="app-main">
+    <main class="app-main" :class="{ 'no-header': isLoginPage }">
       <router-view />
     </main>
   </div>
@@ -24,17 +24,23 @@
 
 <script setup>
 import { computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const isLoggedIn = computed(() => authStore.isAuthenticated);
-const userName = computed(
-  () => authStore.getUserProfile?.displayName || 'User',
-);
-const userPhoto = computed(() => authStore.getUserProfile?.photoURL);
+const isLoginPage = computed(() => route.name === 'login');
+const userName = computed(() => {
+  const profile = authStore.getUserProfile();
+  return profile?.displayName || 'User';
+});
+const userPhoto = computed(() => {
+  const profile = authStore.getUserProfile();
+  return profile?.photoURL || '@/assets/default-avatar.svg';
+});
 
 onMounted(async () => {
   // Check if user is already logged in
@@ -123,6 +129,10 @@ body {
 .app-main {
   flex: 1;
   padding: 2rem;
+}
+
+.app-main.no-header {
+  padding-top: 0;
 }
 
 /* Global button styles */
