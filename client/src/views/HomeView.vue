@@ -6,15 +6,6 @@
           <span>Otto</span>
         </div>
         <div class="panel-actions">
-          <button 
-            class="clear-chat-button" 
-            :disabled="isClearing || chatMessages.length <= 1" 
-            title="Clear chat history"
-            @click="clearChatHistory"
-          >
-            <span class="clear-icon">🗑️</span>
-            <span>{{ isClearing ? 'Clearing...' : 'Clear' }}</span>
-          </button>
           <div v-if="!authStore.isAuthenticated" class="auth-status">
             <button class="signin-button" @click="navigateToLogin">Sign In</button>
           </div>
@@ -260,7 +251,6 @@ const userMessage = ref('');
 const chatMessages = ref([]);
 const iframeKey = ref(0);
 const isLoading = ref(false);
-const isClearing = ref(false);
 
 // In-chat form state
 const showInChatForm = ref(false);
@@ -306,7 +296,7 @@ const isConfirmationMessage = (message) => {
 
 // Handle confirmation button clicks
 const handleConfirmation = (isConfirmed) => {
-  const messageText = isConfirmed ? 'yes' : 'no';
+  const messageText = isConfirmed ? 'Confirm' : 'Cancel';
   const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
   const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
   
@@ -900,14 +890,14 @@ onMounted(() => {
 .home-container {
   display: grid;
   grid-template-columns: 1fr 1.5fr;
-  gap: 0.75rem;
-  height: calc(100vh - 4.5rem);
+  gap: 1.25rem;
+  height: calc(100vh - 4rem);
   width: 100%;
-  max-height: calc(100vh - 4.5rem);
+  max-height: calc(100vh - 4rem);
   overflow: hidden;
-  padding: 0;
+  padding: 1rem;
   box-sizing: border-box;
-  background: linear-gradient(120deg, #f0f7ff 0%, #e6f0fd 100%);
+  background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-gray-100) 100%);
 }
 
 /* Confirmation Button Styles */
@@ -1275,35 +1265,35 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   height: 100%;
   max-height: 100%;
   transition: all 0.3s ease;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid var(--color-gray-200);
 }
 
 .panel-header {
-  padding: 0.6rem 1rem;
-  border-bottom: 1px solid #edf2f7;
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(90deg, #f5f7fa 0%, #e3e9f7 100%);
+  background: linear-gradient(90deg, white 0%, var(--color-gray-100) 100%);
 }
 
 .panel-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1e40af;
   margin: 0;
-  background: linear-gradient(90deg, #1e40af, #0097b2);
+  background: var(--gradient-primary);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
   display: flex;
   align-items: center;
+  letter-spacing: -0.5px;
 }
 
 /* Otto logo styling removed */
@@ -1350,24 +1340,57 @@ textarea:focus {
 
 .chat-history {
   flex: 1;
-  padding: 0.75rem;
+  padding: 1rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.25rem;
   max-height: calc(100% - 100px); /* Adjusted height since action panel was removed */
   scroll-behavior: smooth;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, white 0%, var(--color-gray-50) 100%);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+
+.chat-history::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-300);
+  border-radius: var(--border-radius-full);
 }
 
 .chat-message {
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border-radius: var(--border-radius-lg);
   max-width: 85%;
   word-break: break-word;
-  line-height: 1.4;
-  animation: fadeIn 0.3s ease-out;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  line-height: 1.5;
+  animation: messageSlideIn 0.3s ease-out;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+.chat-message:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .thinking {
@@ -1423,20 +1446,44 @@ textarea:focus {
 
 .user-message {
   align-self: flex-end;
-  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
+  background: var(--gradient-primary);
   color: white;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.user-message::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid var(--color-primary);
+  border-top: 10px solid transparent;
 }
 
 .bot-message {
   align-self: flex-start;
   background-color: white;
-  color: #334155;
-  border: 1px solid #e2e8f0;
+  color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-200);
   border-bottom-left-radius: 4px;
   font-size: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.bot-message::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-right: 10px solid white;
+  border-top: 10px solid transparent;
 }
 
 /* Global rule to ensure ALL elements within bot messages have consistent font size */
@@ -1446,34 +1493,37 @@ textarea:focus {
 
 .system-message {
   align-self: center;
-  background-color: #f0f9ff;
-  color: #0369a1;
-  border: 1px dashed #bae6fd;
+  background: linear-gradient(145deg, var(--color-gray-100) 0%, var(--color-gray-50) 100%);
+  color: var(--color-primary-dark);
+  border: 1px dashed var(--color-primary-light);
   font-size: 0.925rem;
-  padding: 0.65rem 1rem;
-  border-radius: 10px;
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--border-radius-md);
   max-width: 80%;
 }
 
 .in-chat-form {
-  max-width: 90%;
-  padding: 0.75rem;
-  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  max-width: 95%;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(145deg, white 0%, var(--color-gray-50) 100%);
+  border: 1px solid var(--color-gray-200);
 }
 
 .in-chat-form h4 {
   margin-top: 0;
-  color: #0369a1;
-  font-size: 0.95rem;
-  margin-bottom: 0.75rem;
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-gray-200);
+  letter-spacing: -0.25px;
 }
 
 .chat-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .time-input-group {
@@ -1485,54 +1535,69 @@ textarea:focus {
 .chat-input-container {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid #edf2f7;
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-gray-200);
+  background: linear-gradient(180deg, var(--color-gray-50) 0%, white 100%);
 }
 
 .chat-input-wrapper {
   display: flex;
   flex: 1;
   background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-full);
   overflow: hidden;
   transition: all 0.25s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) inset;
+  box-shadow: var(--shadow-sm);
 }
 
 .chat-input-wrapper:focus-within {
-  border-color: #0ea5e9;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  transform: translateY(-2px);
 }
 
 .chat-input {
   flex: 1;
-  padding: 0.6rem 0.75rem;
+  padding: 0.8rem 1.25rem;
   border: none;
   background: transparent;
-  font-size: 0.95rem;
+  font-size: 1rem;
   outline: none;
-  color: #334155;
+  color: var(--color-gray-800);
 }
 
 .chat-input::placeholder {
-  color: #94a3b8;
+  color: var(--color-gray-400);
 }
 
 .send-button {
-  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
+  background: var(--gradient-primary);
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 0.6rem 1rem;
+  border-radius: var(--border-radius-full);
+  padding: 0.75rem 1.5rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s;
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  transition: all 0.25s ease;
+  box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  filter: brightness(110%);
+}
+
+.send-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .send-button::after {
@@ -1570,11 +1635,18 @@ textarea:focus {
 
 .calendar-panel {
   background-color: white;
-  border-radius: 18px;
-  box-shadow: 0 12px 28px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-xl);
   overflow: hidden;
   height: 100%;
-  max-height: calc(100vh - 3rem);
+  max-height: calc(100vh - 4rem);
+  border: 1px solid var(--color-gray-200);
+  transition: all 0.3s ease;
+}
+
+.calendar-panel:hover {
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
 }
 
 /* Unified consistent styles for event list */

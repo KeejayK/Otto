@@ -34,7 +34,7 @@
     <div class="login-right">
       <div class="login-hero-text">
         <div class="tagline">Otto AI</div>
-        <h2>Smarter Scheduling Starts with Otto</h2>
+        <h2>Smarter Scheduling Starts with Ot</h2>
         <p>Otto helps you create, organize, and experience your calendar like never before.</p>
         <div class="hero-benefits">
           <div class="benefit">

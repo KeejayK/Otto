@@ -83,21 +83,12 @@ const logout = async () => {
 </script>
 
 <style>
-/* Reset styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
-  color: #333;
-  background-color: #f5f7fa;
+/* App styles */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-gray-50);
 }
 
 /* Main layout */
@@ -111,14 +102,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.3rem 1.5rem;
+  padding: 0.5rem 2rem;
   background-color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  height: 3.5rem;
+  box-shadow: var(--shadow-md);
+  height: 4rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .logo img {
   height: 2.8rem;
+  transition: transform 0.3s ease;
+}
+
+.logo img:hover {
+  transform: scale(1.05);
 }
 
 .user-profile {
@@ -129,34 +128,37 @@ body {
 }
 
 .user-name {
-  font-weight: 500;
-  color: #4a5568;
-  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  font-size: 0.95rem;
   transition: color 0.2s ease;
 }
 
 .profile-container:hover .user-name {
-  color: #0284c7;
+  color: var(--color-primary);
 }
 
 .avatar {
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 50%;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: var(--border-radius-full);
   object-fit: cover;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--color-gray-200);
   transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-container:hover .avatar {
-  border-color: #cbd5e1;
+  border-color: var(--color-primary-light);
+  transform: scale(1.05);
 }
 
 /* Styles for logout button removed as it's now part of the dropdown */
 
 .app-main {
   flex: 1;
-  padding: 0.75rem;
+  padding: 1.25rem;
+  background: linear-gradient(145deg, var(--color-gray-50) 0%, var(--color-gray-100) 100%);
 }
 
 .app-main.no-header {
@@ -169,31 +171,36 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--border-radius-md);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary {
-  background-color: #4299e1;
+  background: var(--gradient-primary);
   color: white;
   border: none;
 }
 
 .btn-primary:hover {
-  background-color: #3182ce;
+  background: linear-gradient(120deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-outline {
   background-color: white;
-  color: #4299e1;
-  border: 1px solid #4299e1;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-light);
 }
 
 .btn-outline:hover {
-  background-color: #ebf8ff;
+  background-color: var(--color-gray-50);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Profile Dropdown Styles */
@@ -201,80 +208,87 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--border-radius-full);
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: #f8fafc;
+  background-color: var(--color-gray-100);
   border: 1px solid transparent;
   position: relative;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-container:hover {
-  background-color: #f0f9ff;
-  border-color: #bae6fd;
+  background-color: var(--color-gray-200);
+  border-color: var(--color-primary-light);
 }
 
 .dropdown-arrow {
   font-size: 0.7rem;
-  color: #64748b;
+  color: var(--color-gray-500);
   transition: transform 0.2s ease;
   margin-left: 0.1rem;
-  margin-top: 0.1rem;
 }
 
 .dropdown-arrow-open {
   transform: rotate(180deg);
-  color: #0284c7;
+  color: var(--color-primary);
 }
 
 .profile-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
-  width: 180px;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 200px;
   z-index: 100;
   overflow: hidden;
+  border: 1px solid var(--color-gray-200);
+  animation: dropdownFadeIn 0.2s ease-out;
   animation: dropdown-fade 0.2s ease-out;
   border: 1px solid #e2e8f0;
 }
 
 .dropdown-item {
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  transition: all 0.15s ease;
-  color: #4a5568;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  color: var(--color-gray-700);
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  position: relative;
 }
 
 .dropdown-item:hover {
-  background-color: #f0f9ff;
-  color: #0284c7;
+  background: linear-gradient(90deg, var(--color-gray-100) 0%, white 100%);
+  color: var(--color-primary);
+}
+
+.dropdown-item:active {
+  transform: scale(0.98);
 }
 
 .dropdown-icon {
-  width: 16px;
-  height: 16px;
-  color: #64748b;
-  transition: color 0.2s ease;
+  width: 18px;
+  height: 18px;
+  color: var(--color-gray-500);
+  transition: all 0.2s ease;
 }
 
 .dropdown-item:hover .dropdown-icon {
-  color: #0284c7;
+  color: var(--color-primary);
+  transform: translateX(2px);
 }
 
-@keyframes dropdown-fade {
+@keyframes dropdownFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
