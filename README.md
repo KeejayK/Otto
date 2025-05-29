@@ -4,25 +4,25 @@
 
 ## 📘 Overview
 
-Otto is an intelligent calendar assistant built for students. Speak naturally to manage your schedule, snap photos class timetables and copy-paste your syllabi to instantly capture deadlines, exam dates, and office hour times to seamlessly sync everything to your Google Calendar.
+otto is an intelligent calendar assistant built for students. Speak naturally to manage your schedule - add, edit or remove events directly through conversation. otto helps students streamline academic scheduling by using natural language processing and integrates seamlessly with Google Calendar.
 
 ### We aim to:
 
-- **Simplify academic scheduling** by creating a streamlined solution that understands how students actually work.
-- **Redefine** how students manage their academic schedules with a conversational interface purpose-built for college life.
+- **Simplify academic scheduling** by creating a streamlined solution that understands how students actually work
+- **Redefine** how students manage their academic schedules with a conversational interface purpose-built for college life
+- Make calendar management feel **as easy as texting a friend**
 
 ### We'll achieve these goals by: 
 
-- Utilizing natural language processing to simplify calendar management
-- Automate the extraction of critical dates from syllabi
-- Integrating the changes directly to Google Calendar
+- Leveraging natural language processing for calendar commands
+- Integrating directly with Google Calendar for automatic event updates
 
-## 🎯 Planned Features
+## 🎯 Core Features
 
-- Simple Natural Language Event Creation: A straightforward text input field where students can type events in plain English
-- Conversational Event Editing: Ability to modify existing events through natural chat interactions
-- Basic Syllabus Text Parser: Copy paste syllabi content to automatically extract dates and assignment information using keyword recognition
-- Google Calendar Integration: One-way sync that pushes otto events to Google Calendar.
+- **Natural Language Event Creation:** Add events by typing in plain English
+- **Conversational Event Editing:** Modify existing events through natural chat interactions
+- **Smart Event Removal:** Delete events just by asking otto
+- **Google Calendar Integration:** One-way sync that pushes otto events to Google Calendar.
 
 ## 🛠️ Tech Stack
 
@@ -40,88 +40,7 @@ Otto is an intelligent calendar assistant built for students. Speak naturally to
 - Firebase project
 - OpenAI API key
 
-### Installation
+## 📜 Documentation
 
-Install from source
-
-```terminal
-git clone git@github.com:KeejayK/otto.git
-cd otto
-npm install
-```
-
-### Required Configs
-
-/server/.env
-
-```.env
-OPENAI_API_KEY=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-```
-
-/server/serviceAccountKey.json
-
-```serviceAccountKey.json
-
-{
-    "type": "service_account",
-    "project_id": "",
-    "private_key_id": "",
-    "private_key": "",
-    "client_id": "",
-    "auth_uri": "",
-    "token_uri": "",
-    "auth_provider_x509_cert_url": "",
-    "client_x509_cert_url": "",
-    "universe_domain": ""
-}
-```
-
-### Usage
-
-Backend Setup
-
-```terminal
-cd server
-npm start
-```
-
-Frontend Setup
-
-```terminal
-cd client
-npm run dev
-```
-
-### Testing
-
-Dependency Installation
-
-```terminal
-npm ci
-```
-
-Linting
-
-```terminal
-npm run lint
-```
-
-Checking formatting
-
-```terminal
-npm run format
-```
-
-Testing
-
-```terminal
-npm run test
-```
-
-Building frontend
-
-```terminal
-npm run build
-```
+- [Developer Documentation](https://github.com/KeejayK/otto/blob/main/DeveloperDoc.md)
+- [User Manual](https://github.com/KeejayK/otto/blob/main/UserManual.md)
