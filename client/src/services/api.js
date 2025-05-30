@@ -80,16 +80,29 @@ export const calendarApi = {
 // Chat API
 export const chatApi = {
   getHistory: async () => {
-    const res = await api.get('/chat/history');
-    return res.data; // array of { id, message, role, timestamp }
+    try {
+      const res = await api.get('/chat/history');
+      return res.data; // array of { id, message, role, timestamp }
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      return []; // Return empty array on error for graceful degradation
+    }
   },
   clearHistory: async () => {
-    const res = await api.delete('/chat/history');
-    return res.data; // { message: 'Chat history cleared successfully' }
-  },
-  sendMessage: async (message) => {
     try {
-      const res = await api.post('/chat', { message });
+      const res = await api.delete('/chat/history');
+      return res.data; // { message: 'Chat history cleared successfully' }
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+      throw error;
+    }
+  },
+  sendMessage: async (message, context = []) => {
+    try {
+      const res = await api.post('/chat', { 
+        message,
+        context: context.slice(-5) // Send last 5 messages for context
+      });
       return { data: res.data }; // { message: 'Event created', calendarLink: '…', type }
     } catch (error) {
       console.error('Error in sendMessage:', error);

@@ -86,7 +86,9 @@ const loginWithGoogle = async () => {
 <style scoped>
 .login-root {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: linear-gradient(120deg, #f0f7ff 0%, #e6f0fd 100%);
 }
 
@@ -97,7 +99,7 @@ const loginWithGoogle = async () => {
   justify-content: center;
   align-items: center;
   background: linear-gradient(145deg, #dbeeff 0%, #cfe4e4 100%);
-  padding: 2rem 0;
+  padding: 1rem 0;
   position: relative;
   overflow: hidden;
 }
@@ -119,8 +121,8 @@ const loginWithGoogle = async () => {
 
 .login-card {
   width: 100%;
-  max-width: 420px;
-  padding: 2.8rem 2.5rem 2.2rem 2.5rem;
+  max-width: 380px;
+  padding: 1.8rem 2rem 1.2rem 2rem;
   background: white;
   border-radius: 24px;
   box-shadow:
@@ -142,8 +144,8 @@ const loginWithGoogle = async () => {
 }
 
 .login-logo {
-  width: 130px;
-  margin: 0 auto 1.8rem;
+  width: 100px;
+  margin: 0 auto 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,7 +159,7 @@ const loginWithGoogle = async () => {
 }
 
 .login-title {
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   font-weight: 800;
   color: #1e40af;
   margin-bottom: 0.25rem;
@@ -170,8 +172,8 @@ const loginWithGoogle = async () => {
 
 .login-subtitle {
   color: #4a5568;
-  margin-bottom: 2.5rem;
-  font-size: 1.15rem;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -242,12 +244,12 @@ const loginWithGoogle = async () => {
 }
 
 .login-info {
-  margin-top: 2rem;
-  font-size: 0.97rem;
+  margin-top: 1rem;
+  font-size: 0.85rem;
   color: #64748b;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border-radius: 12px;
-  padding: 1.2rem 1.4rem;
+  padding: 0.8rem 1rem;
   box-shadow: inset 0 1px 2px rgba(66, 153, 225, 0.1);
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
@@ -255,8 +257,8 @@ const loginWithGoogle = async () => {
 .login-features {
   display: flex;
   justify-content: space-around;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: 1.2rem;
+  padding-top: 1rem;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -287,8 +289,9 @@ const loginWithGoogle = async () => {
   justify-content: center;
   align-items: center;
   background: linear-gradient(145deg, #e3e9f7 0%, #f0f9ff 100%);
-  padding: 2rem 2.5rem;
+  padding: 1rem 2rem;
   position: relative;
+  overflow-y: auto;
 }
 
 .login-right::after {
@@ -305,8 +308,8 @@ const loginWithGoogle = async () => {
 }
 
 .login-hero-text {
-  max-width: 440px;
-  margin-bottom: 2.5rem;
+  max-width: 400px;
+  margin-bottom: 0.8rem;
   text-align: left;
   position: relative;
   z-index: 2;
@@ -314,22 +317,22 @@ const loginWithGoogle = async () => {
 
 .tagline {
   display: inline-block;
-  padding: 0.4rem 1rem;
+  padding: 0.3rem 0.8rem;
   background: rgba(14, 165, 233, 0.12);
   border-radius: 999px;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #0369a1;
-  margin-bottom: 1.2rem;
+  margin-bottom: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .login-hero-text h2 {
-  font-size: 2.2rem;
+  font-size: 2rem;
   font-weight: 800;
   color: #0369a1;
-  margin-bottom: 1.2rem;
+  margin-bottom: 0.8rem;
   line-height: 1.2;
   letter-spacing: -0.5px;
   position: relative;
@@ -337,37 +340,37 @@ const loginWithGoogle = async () => {
 
 .login-hero-text p {
   color: #475569;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 400;
-  line-height: 1.6;
-  margin-bottom: 1.8rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
 }
 
 .hero-benefits {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.5rem;
 }
 
 .benefit {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  font-size: 1.05rem;
+  gap: 0.6rem;
+  font-size: 1rem;
   color: #334155;
 }
 
 .benefit-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: linear-gradient(90deg, #0284c7, #0ea5e9);
 }
 
 .login-hero-img {
-  width: 420px;
+  width: 320px;
   max-width: 90vw;
-  margin: 0 auto;
+  margin: 1.5rem auto 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -379,21 +382,21 @@ const loginWithGoogle = async () => {
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 12px;
   box-shadow:
-    0 20px 40px rgba(14, 165, 233, 0.15),
-    0 10px 20px rgba(0, 0, 0, 0.08);
-  transform: perspective(1000px) rotateY(2deg) rotateX(2deg);
+    0 10px 20px rgba(14, 165, 233, 0.12),
+    0 5px 10px rgba(0, 0, 0, 0.06);
+  transform: perspective(1000px) rotateY(1deg) rotateX(1deg);
   transition: all 0.5s ease;
 }
 
 .img-wrapper:hover {
-  transform: perspective(1000px) rotateY(-2deg) rotateX(-2deg);
+  transform: perspective(1000px) rotateY(-1deg) rotateX(-1deg);
 }
 
 .login-hero-img img {
   width: 100%;
-  border-radius: 24px;
+  border-radius: 12px;
   background: transparent;
   box-shadow: none;
   transition: transform 0.5s ease;
@@ -455,11 +458,11 @@ const loginWithGoogle = async () => {
 
 @media (max-width: 1200px) {
   .login-hero-img {
-    width: 380px;
+    width: 280px;
   }
   
   .login-hero-text {
-    max-width: 380px;
+    max-width: 350px;
   }
 }
 
@@ -472,17 +475,18 @@ const loginWithGoogle = async () => {
     flex: unset;
     width: 100%;
     min-height: auto;
-    padding: 3rem 1rem;
+    padding: 1.5rem 1rem;
+    height: 50vh;
   }
   
   .login-hero-img {
-    width: 280px;
+    width: 220px;
     margin-top: 1rem;
   }
   
   .login-hero-text {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
   }
   
   .benefit {
@@ -500,20 +504,20 @@ const loginWithGoogle = async () => {
 
 @media (max-width: 480px) {
   .login-title {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
   
   .login-hero-text h2 {
-    font-size: 1.7rem;
+    font-size: 1.4rem;
   }
   
   .login-card {
-    padding: 2rem 1.5rem;
+    padding: 1.5rem 1.2rem;
   }
   
   .login-features {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.7rem;
   }
   
   .feature {
@@ -522,11 +526,11 @@ const loginWithGoogle = async () => {
   }
   
   .login-hero-img {
-    width: 240px;
+    width: 200px;
   }
   
   .benefit {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
   }
 }
 </style>

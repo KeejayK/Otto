@@ -2,7 +2,9 @@
   <div class="home-container">
     <div class="chat-panel">
       <div class="panel-header">
-        <h2 class="panel-title">otto</h2>
+        <div class="panel-title">
+          <span>Otto</span>
+        </div>
         <div class="panel-actions">
           <div v-if="!authStore.isAuthenticated" class="auth-status">
             <button class="signin-button" @click="navigateToLogin">Sign In</button>
@@ -41,11 +43,11 @@
         </div>
          
         <!-- In-chat Form: Add Recurring Event -->
-        <div v-if="showInChatForm && currentAction === 'Add recurring event'" class="chat-message bot-message in-chat-form">
+        <div v-if="showInChatForm && currentAction === 'Add recurring event'" class="chat-message bot-message in-chat-form compact-form">
           <h4>Add Recurring Event</h4>
           <div class="chat-form">
-            <div class="form-group">
-              <label for="eventName">Event Name:</label>
+            <div class="form-group compact">
+              <label for="eventName">Event Name</label>
               <input
                 id="eventName"
                 v-model="formData.eventName"
@@ -56,62 +58,64 @@
               />
             </div>
             
-            <div class="form-group">
-              <label>Days:</label>
-              <div class="days-selector">
-                <label v-for="(label, day) in weekDays" :key="day" class="day-checkbox">
-                  <input
-                    v-model="formData.daysOfWeek[day]"
-                    type="checkbox"
-                  />
-                  <span>{{ label }}</span>
-                </label>
+            <div class="days-time-container">
+              <div class="form-group days-group compact">
+                <label>Repeat on</label>
+                <div class="days-selector compact">
+                  <label v-for="(label, day) in weekDays" :key="day" class="day-checkbox compact">
+                    <input
+                      v-model="formData.daysOfWeek[day]"
+                      type="checkbox"
+                    />
+                    <span>{{ label }}</span>
+                  </label>
+                </div>
               </div>
-            </div>
-            
-            <div class="form-group form-row">
-              <div>
-                <label>Time:</label>
-                <div class="time-input-group">
+              
+              <div class="form-group time-group compact">
+                <label>Time</label>
+                <div class="time-input-group compact">
                   <input
                     id="startTime"
                     v-model="formData.startTime"
                     type="time"
-                    class="form-control"
+                    class="form-control time-input"
                   />
-                  <span>to</span>
+                  <span class="time-separator">to</span>
                   <input
                     id="endTime"
                     v-model="formData.endTime"
                     type="time"
-                    class="form-control"
+                    class="form-control time-input"
                   />
                 </div>
               </div>
             </div>
             
-            <div class="form-group form-row">
-              <div>
-                <label>Start Date:</label>
-                <input
-                  id="startDate"
-                  v-model="formData.startDate"
-                  type="date"
-                  class="form-control"
-                />
-              </div>
-              <div>
-                <label>End Date:</label>
-                <input
-                  id="endDate"
-                  v-model="formData.endDate"
-                  type="date"
-                  class="form-control"
-                />
+            <div class="form-group date-range compact">
+              <div class="date-from-to">
+                <div>
+                  <label for="startDate">From</label>
+                  <input
+                    id="startDate"
+                    v-model="formData.startDate"
+                    type="date"
+                    class="form-control date-input"
+                  />
+                </div>
+                <div>
+                  <label for="endDate">Until</label>
+                  <input
+                    id="endDate"
+                    v-model="formData.endDate"
+                    type="date"
+                    class="form-control date-input"
+                  />
+                </div>
               </div>
             </div>
             
-            <div class="form-actions">
+            <div class="form-actions compact">
               <button class="form-cancel-btn" @click="cancelInChatForm">Cancel</button>
               <button class="form-submit-btn" @click="submitForm">Create Event</button>
             </div>
@@ -189,21 +193,7 @@
         </div>
       </div>
       
-      <!-- Action Panel -->
-      <div class="action-panel">
-        <button class="action-pill" @click="handleQuickAction('See events this week')">
-          <span class="pill-icon">📅</span>
-          <span>Events this week</span>
-        </button>
-        <button class="action-pill" @click="openInChatForm('Add recurring event')">
-          <span class="pill-icon">🔁</span>
-          <span>Add recurring</span>
-        </button>
-        <button class="action-pill clear-history" :disabled="isClearing" @click="clearChatHistory">
-          <span class="pill-icon">🗑️</span>
-          <span>{{ isClearing ? 'Clearing...' : 'Clear Chat' }}</span>
-        </button>
-      </div>
+      <!-- Chat input area without action panel -->
       
       <!-- Quick Actions Menu removed as requested -->
       
@@ -261,7 +251,6 @@ const userMessage = ref('');
 const chatMessages = ref([]);
 const iframeKey = ref(0);
 const isLoading = ref(false);
-const isClearing = ref(false);
 
 // In-chat form state
 const showInChatForm = ref(false);
@@ -307,7 +296,7 @@ const isConfirmationMessage = (message) => {
 
 // Handle confirmation button clicks
 const handleConfirmation = (isConfirmed) => {
-  const messageText = isConfirmed ? 'yes' : 'no';
+  const messageText = isConfirmed ? 'Confirm' : 'Cancel';
   const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
   const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
   
@@ -901,13 +890,14 @@ onMounted(() => {
 .home-container {
   display: grid;
   grid-template-columns: 1fr 1.5fr;
-  gap: 2rem;
-  height: 100vh;
+  gap: 1.25rem;
+  height: calc(100vh - 4rem);
   width: 100%;
-  max-height: 100vh;
+  max-height: calc(100vh - 4rem);
   overflow: hidden;
   padding: 1rem;
   box-sizing: border-box;
+  background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-gray-100) 100%);
 }
 
 /* Confirmation Button Styles */
@@ -921,9 +911,9 @@ onMounted(() => {
 .confirm-btn, .cancel-btn {
   background-color: #f5f5f5;
   color: #333;
-  border: 1px solid #ccc;
-  padding: 8px 16px;
-  border-radius: 4px;
+  border: 1px solid #ddd;
+  padding: 10px 18px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
@@ -933,16 +923,28 @@ onMounted(() => {
   gap: 8px;
 }
 
-.confirm-btn:hover, .cancel-btn:hover {
+.confirm-btn {
+  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+}
+
+.confirm-btn:hover {
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
+  transform: translateY(-2px);
+}
+
+.cancel-btn:hover {
   background-color: #e5e5e5;
   color: #333;
-  box-shadow: none;
-  transform: translateY(0);
+  transform: translateY(-2px);
 }
 
 .confirm-btn:active, .cancel-btn:active {
-  background-color: #f1f3f4;
-  color: #5f6368;
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 /* Form Modal Styles */
@@ -961,28 +963,46 @@ onMounted(() => {
 
 .form-modal {
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(66, 153, 225, 0.15), 0 5px 15px rgba(0, 0, 0, 0.08);
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 0;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background-color: #f5f5f5;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(90deg, #f5f7fa 0%, #e3e9f7 100%);
   border-bottom: 1px solid #e0e0e0;
-  border-radius: 8px 8px 0 0;
+  border-radius: 16px 16px 0 0;
 }
 
 .form-header h3 {
   margin: 0;
-  color: #333;
+  color: #1e40af;
+  font-weight: 700;
+  font-size: 1.25rem;
+  background: linear-gradient(90deg, #1e40af, #0097b2);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 .close-btn {
@@ -991,19 +1011,25 @@ onMounted(() => {
   font-size: 1.5rem;
   cursor: pointer;
   color: #666;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  color: #0ea5e9;
+  transform: rotate(90deg);
 }
 
 .form-body {
-  padding: 1.5rem;
+  padding: 0.9rem;
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.8rem;
 }
 
 .form-row {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .form-row > div {
@@ -1012,9 +1038,10 @@ onMounted(() => {
 
 label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #333;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.85rem;
 }
 
 input[type="text"],
@@ -1022,77 +1049,95 @@ input[type="date"],
 input[type="time"],
 textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
   box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) inset;
+  transition: all 0.2s ease;
 }
 
 input:focus,
 textarea:focus {
-  border-color: #4a85f6;
+  border-color: #0ea5e9;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(74, 133, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 
 .days-selector {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 0.5rem;
 }
 
 .day-checkbox {
   display: inline-flex;
   align-items: center;
-  background-color: #f5f5f5;
-  padding: 6px 12px;
-  border-radius: 4px;
+  background-color: #f8fafc;
+  padding: 8px 14px;
+  border-radius: 20px;
   cursor: pointer;
   margin-right: 8px;
   margin-bottom: 8px;
   user-select: none;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.day-checkbox:hover {
+  background-color: #f0f9ff;
+  border-color: #bae6fd;
 }
 
 .day-checkbox input {
   margin-right: 5px;
+  accent-color: #0ea5e9;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 1.5rem;
+  gap: 12px;
+  margin-top: 2rem;
 }
 
-.cancel-btn {
-  background-color: #f5f5f5;
-  color: #333;
-  border: 1px solid #ccc;
-  padding: 8px 16px;
-  border-radius: 4px;
+.form-cancel-btn {
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  padding: 10px 18px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.25s;
 }
 
-.submit-btn {
-  background-color: #4a85f6;
+.form-submit-btn {
+  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 10px 18px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.25s;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
 }
 
-.submit-btn:hover {
-  background-color: #3b76e1;
+.form-submit-btn:hover {
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
+  transform: translateY(-2px);
 }
 
-.cancel-btn:hover {
-  background-color: #e5e5e5;
+.form-cancel-btn:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
 }
 
 .calendar-placeholder {
@@ -1100,40 +1145,86 @@ textarea:focus {
   justify-content: center;
   align-items: center;
   height: 100%;
-  background-color: #f7fafc;
-  color: #718096;
+  background-color: white;
+  color: #64748b;
   font-size: 1.1rem;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-placeholder::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230ea5e9' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM36 0V4h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.5;
+  z-index: 1;
 }
 
 .auth-prompt {
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem;
   background-color: white;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 25px rgba(66, 153, 225, 0.15), 0 4px 10px rgba(0, 0, 0, 0.08);
   max-width: 80%;
+  z-index: 2;
+  position: relative;
+  animation: fadeIn 0.8s ease-out;
 }
 
 .auth-prompt h3 {
-  color: #2d3748;
-  margin-bottom: 1rem;
+  color: #1e40af;
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  background: linear-gradient(90deg, #1e40af, #0097b2);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 .signin-button-large {
-  background-color: #4285F4;
+  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  padding: 0.7rem 1.25rem;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  margin-top: 1.5rem;
-  transition: all 0.2s;
+  margin-top: 1rem;
+  transition: all 0.25s;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.signin-button-large::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 100%;
+  top: 0;
+  left: -100px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: shimmer 2.5s infinite;
 }
 
 .signin-button-large:hover {
-  background-color: #3367D6;
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
+  transform: translateY(-2px);
 }
 
 .auth-status {
@@ -1142,50 +1233,70 @@ textarea:focus {
 }
 
 .signin-button {
-  background-color: #4285F4;
+  background: linear-gradient(90deg, #0284c7 0%, #0ea5e9 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
 }
 
 .signin-button:hover {
-  background-color: #3367D6;
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
+  transform: translateY(-2px);
 }
 
 .calendar-wrapper {
   height: 100%;
   width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(66, 153, 225, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: white;
+  transition: all 0.3s ease;
 }
 
 .chat-panel {
   display: flex;
   flex-direction: column;
   background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   height: 100%;
-  max-height: calc(100vh - 2rem);
+  max-height: 100%;
+  transition: all 0.3s ease;
+  border: 1px solid var(--color-gray-200);
 }
 
 .panel-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #edf2f7;
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(90deg, white 0%, var(--color-gray-100) 100%);
 }
 
 .panel-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #2d3748;
+  font-size: 1.5rem;
+  font-weight: 700;
   margin: 0;
+  background: var(--gradient-primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.5px;
 }
+
+/* Otto logo styling removed */
 
 .panel-actions {
   display: flex;
@@ -1193,65 +1304,39 @@ textarea:focus {
   gap: 0.75rem;
 }
 
-.action-panel {
-  display: flex;
-  justify-content: right;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #f9fafb;
-  border-top: 1px solid #edf2f7;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.05);
-}
-
-.action-pill {
+.clear-chat-button {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #4a5568;
+  padding: 0.5rem 0.8rem;
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e53e3e;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.25s ease-in-out;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.action-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  background-color: #f7fafc;
-  color: #3182ce;
-  border-color: #bee3f8;
-}
-
-.action-pill.clear-history {
-  background-color: #fff5f5;
-  color: #e53e3e;
-  border-color: #fed7d7;
-}
-
-.action-pill.clear-history:hover:not([disabled]) {
+.clear-chat-button:hover:not([disabled]) {
   background-color: #fed7d7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(229, 62, 62, 0.15);
 }
 
-.action-pill.clear-history[disabled] {
+.clear-chat-button[disabled] {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.pill-icon {
-  font-size: 0.9rem;
+.clear-icon {
+  font-size: 1.1rem;
   display: inline-block;
-  margin-right: 2px;
 }
 
-/* Toggle icon removed as no longer needed */
-
-/* Quick actions menu styles removed as they are no longer needed */
+/* Action panel styles removed */
 
 .chat-history {
   flex: 1;
@@ -1259,37 +1344,77 @@ textarea:focus {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: calc(100% - 200px);
+  gap: 1.25rem;
+  max-height: calc(100% - 100px); /* Adjusted height since action panel was removed */
   scroll-behavior: smooth;
+  background: linear-gradient(180deg, white 0%, var(--color-gray-50) 100%);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+
+.chat-history::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-300);
+  border-radius: var(--border-radius-full);
 }
 
 .chat-message {
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  max-width: 80%;
+  padding: 1rem 1.25rem;
+  border-radius: var(--border-radius-lg);
+  max-width: 85%;
   word-break: break-word;
   line-height: 1.5;
-  animation: fadeIn 0.3s ease-out;
+  animation: messageSlideIn 0.3s ease-out;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+.chat-message:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .thinking {
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.25rem;
+  box-shadow: none;
 }
 
 .dot-animation {
   display: inline-block;
   position: relative;
-  width: 40px;
-  height: 16px;
+  width: 60px;
+  height: 20px;
 }
 
 .dot-animation::before {
   content: '...';
   display: inline-block;
   animation: dotAnimation 1.5s infinite;
-  font-size: 20px;
+  font-size: 24px;
   letter-spacing: 2px;
+  background: linear-gradient(90deg, #0284c7, #0ea5e9);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 @keyframes dotAnimation {
@@ -1302,7 +1427,7 @@ textarea:focus {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -1310,20 +1435,55 @@ textarea:focus {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    left: -100px;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
 .user-message {
   align-self: flex-end;
-  background-color: #4299e1;
+  background: var(--gradient-primary);
   color: white;
   border-bottom-right-radius: 4px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.user-message::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid var(--color-primary);
+  border-top: 10px solid transparent;
 }
 
 .bot-message {
   align-self: flex-start;
-  background-color: #f7fafc;
-  color: #4a5568;
-  border: 1px solid #edf2f7;
+  background-color: white;
+  color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-200);
   border-bottom-left-radius: 4px;
-  font-size: 1rem; /* Set base font size for all content in bot messages */
+  font-size: 1rem;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.bot-message::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-right: 10px solid white;
+  border-top: 10px solid transparent;
 }
 
 /* Global rule to ensure ALL elements within bot messages have consistent font size */
@@ -1333,68 +1493,134 @@ textarea:focus {
 
 .system-message {
   align-self: center;
-  background-color: #f7fafc;
-  color: #718096;
-  border: 1px dashed #e2e8f0;
-  font-size: 0.875rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
+  background: linear-gradient(145deg, var(--color-gray-100) 0%, var(--color-gray-50) 100%);
+  color: var(--color-primary-dark);
+  border: 1px dashed var(--color-primary-light);
+  font-size: 0.925rem;
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--border-radius-md);
+  max-width: 80%;
+}
+
+.in-chat-form {
+  max-width: 95%;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(145deg, white 0%, var(--color-gray-50) 100%);
+  border: 1px solid var(--color-gray-200);
+}
+
+.in-chat-form h4 {
+  margin-top: 0;
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  letter-spacing: -0.25px;
+}
+
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.time-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .chat-input-container {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #edf2f7;
-  background-color: white;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-gray-200);
+  background: linear-gradient(180deg, var(--color-gray-50) 0%, white 100%);
 }
 
 .chat-input-wrapper {
   display: flex;
   flex: 1;
-  background-color: #f7fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  background-color: white;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-full);
   overflow: hidden;
-  transition: all 0.2s;
+  transition: all 0.25s;
+  box-shadow: var(--shadow-sm);
 }
 
 .chat-input-wrapper:focus-within {
-  border-color: #4299e1;
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  transform: translateY(-2px);
 }
 
 .chat-input {
   flex: 1;
-  padding: 0.75rem 1.25rem;
+  padding: 0.8rem 1.25rem;
   border: none;
   background: transparent;
-  font-size: 0.95rem;
+  font-size: 1rem;
   outline: none;
-  color: #2d3748;
+  color: var(--color-gray-800);
 }
 
 .chat-input::placeholder {
-  color: #a0aec0;
+  color: var(--color-gray-400);
 }
 
 .send-button {
-  background-color: #4299e1;
+  background: var(--gradient-primary);
   color: white;
   border: none;
-  border-radius: 24px;
+  border-radius: var(--border-radius-full);
   padding: 0.75rem 1.5rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+  transition: all 0.25s ease;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  filter: brightness(110%);
+}
+
+.send-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.send-button::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 100%;
+  top: 0;
+  left: -100px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: shimmer 2.5s infinite;
 }
 
 .send-button:hover:not([disabled]) {
-  background-color: #3182ce;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
 }
 
 .send-button:active:not([disabled]) {
@@ -1402,37 +1628,49 @@ textarea:focus {
 }
 
 .send-button[disabled] {
-  background-color: #a0aec0;
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
   cursor: not-allowed;
-  box-shadow: none;
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.25);
 }
 
 .calendar-panel {
   background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-xl);
   overflow: hidden;
   height: 100%;
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 4rem);
+  border: 1px solid var(--color-gray-200);
+  transition: all 0.3s ease;
 }
 
-/* Unified consistent styles for event list - all font sizes set to 1rem for consistency */
+.calendar-panel:hover {
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Unified consistent styles for event list */
 .bot-message h2 {
   margin-top: 0;
-  color: #2d3748;
-  font-size: 1.1rem;
+  color: #1e40af;
+  font-size: 1.2rem;
   border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
   margin-bottom: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
+  background: linear-gradient(90deg, #1e40af, #0097b2);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  display: inline-block;
 }
 
 .bot-message h3 {
-  color: #4a5568;
-  font-size: 1rem;
+  color: #334155;
+  font-size: 1.05rem;
   margin-top: 2.5rem;
   margin-bottom: 1.2rem;
-  font-weight: 500;
+  font-weight: 600;
   padding: 0.5rem 0;
   display: flex;
   align-items: center;
@@ -1440,163 +1678,203 @@ textarea:focus {
 }
 
 .bot-message ul {
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
   margin-left: 0;
   padding-left: 0;
   list-style-type: none;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .bot-message li {
   margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
   line-height: 1.5;
   font-size: 1rem;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   position: relative;
-  padding-left: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.bot-message li:hover {
+  border-color: #bae6fd;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
+  transform: translateY(-2px);
 }
 
 /* Make events appear as a single line with consistent font */
 .bot-message li strong {
   font-weight: 600;
-  color: #2d3748;
+  color: #0369a1;
   margin-right: 1.5rem;
   font-size: 1rem;
-}
-
-/* Ensure all text content has consistent font size */
-.bot-message li *:not(a) {
-  font-size: 1rem !important;
-}
-
-/* Style the day number and abbreviation to match the image */
-.bot-message h3 {
-  display: flex;
-  align-items: baseline;
-  gap: 1.5rem;
-}
-
-/* Style day numbers to be prominent */
-.bot-message h3::first-letter {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-right: 0.5rem;
-}
-
-/* Target vue3-markdown-it rendered content */
-.bot-message .vue3-markdown-it p,
-.bot-message .vue3-markdown-it span,
-.bot-message .vue3-markdown-it a,
-.bot-message .vue3-markdown-it strong,
-.bot-message .vue3-markdown-it em,
-.bot-message .vue3-markdown-it code {
-  font-size: 1rem !important;
-}
-
-/* Specifically target any elements that might be used for dates and times */
-.bot-message time,
-.bot-message .time,
-.bot-message .date {
-  font-size: 1rem !important;
-}
-
-/* Event spacing similar to the calendar view */
-.bot-message li {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
 }
 
 /* Button styling for event actions */
 .bot-message a {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  padding: 0.25rem 0.5rem;
-  background-color: transparent;
-  color: #3182ce;
-  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
   margin-left: 0.5rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.2s;
-  min-width: 28px;
-  height: 28px;
-  text-align: center;
-  position: relative;
+  font-size: 0.85rem !important;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
 .bot-message a:hover {
-  background-color: #f0f4f8;
-  transform: translateY(-1px);
+  background-color: #f8fafc;
+  color: #0284c7;
+  border-color: #bae6fd;
 }
 
-/* Delete button styling */
-.bot-message a[href^="command:delete"] {
-  color: #e53e3e;
+/* Media queries for responsiveness */
+@media (max-width: 1024px) {
+  .home-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: calc(100vh - 3.5rem);
+    max-height: calc(100vh - 3.5rem);
+  }
+  
+  .chat-panel, .calendar-wrapper {
+    height: calc(50vh - 1.5rem);
+    max-height: none;
+  }
+  
+  .calendar-placeholder {
+    height: calc(50vh - 1.5rem);
+  }
 }
 
-.bot-message a[href^="command:delete"]:hover {
-  background-color: #fff5f5;
+@media (max-width: 640px) {
+  .home-container {
+    padding: 0;
+    gap: 0.5rem;
+  }
+  
+  .chat-message {
+    max-width: 90%;
+    padding: 0.6rem 0.8rem;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .chat-input-container {
+    padding: 0.75rem 1rem;
+  }
+  
+  .send-button {
+    padding: 0.75rem 1.2rem;
+  }
+  
+  .auth-prompt {
+    padding: 1.5rem;
+  }
 }
 
-/* Edit button styling */
-.bot-message a[href^="command:edit"] {
-  color: #3182ce;
+/* Compact Recurring Event Form Styles */
+.compact-form {
+  width: 95%;
+  padding: 1rem 1.15rem;
 }
 
-.bot-message a[href^="command:edit"]:hover {
-  background-color: #ebf8ff;
+.compact-form h4 {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
 }
 
-/* Action icon button styles */
-.action-icon {
-  font-size: 1.2rem;
-  display: inline-flex;
+.form-group.compact {
+  margin-bottom: 0.75rem;
+}
+
+.form-group.compact label {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.days-time-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-group.days-group {
+  flex: 1.5;
+}
+
+.form-group.time-group {
+  flex: 1;
+}
+
+.days-selector.compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 0.25rem;
+}
+
+.day-checkbox.compact {
+  padding: 4px 6px;
+  border-radius: 12px;
+  margin-right: 2px;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+}
+
+.time-input-group.compact {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
-}
-
-/* Tooltip styling */
-.tooltip {
-  position: relative;
-}
-
-.tooltip::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 110%;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s;
-  z-index: 10;
-}
-
-.tooltip:hover::after {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* Event action buttons container */
-.event-actions {
-  display: inline-flex;
-  align-items: center;
-  margin-left: auto;
   gap: 0.25rem;
+}
+
+.time-separator {
+  font-size: 0.85rem;
+  color: #64748b;
+  padding: 0 2px;
+}
+
+.time-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.date-range.compact {
+  margin-bottom: 0.75rem;
+}
+
+.date-from-to {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.date-from-to > div {
+  flex: 1;
+}
+
+.date-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.form-actions.compact {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 </style>
