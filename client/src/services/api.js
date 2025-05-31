@@ -119,34 +119,7 @@ export const chatApi = {
   },
 };
 
-// Syllabus API
-export const syllabusApi = {
-  getSyllabi: async () => {
-    const res = await api.get('/syllabus');
-    return res.data;
-  },
-  getSyllabusDetails: async (id) => {
-    const res = await api.get(`/syllabus/${id}`);
-    return res.data;
-  },
-  parseSyllabusText: async (text, courseName) => {
-    const res = await api.post('/syllabus/parse', { text, courseName });
-    return res.data;
-  },
-  uploadSyllabus: async (formData) => {
-    const res = await api.post('/syllabus', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return res.data;
-  },
-  addToCalendar: async (syllabusId, eventIds) => {
-    const res = await api.post(`/syllabus/${syllabusId}/events`, { eventIds });
-    return res.data;
-  },
-};
-
 export default {
   calendar: calendarApi,
   chat: chatApi,
-  syllabus: syllabusApi,
 };
