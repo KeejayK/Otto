@@ -1,6 +1,16 @@
 const { parseGPTResponse } = require('../services/nlp/parseResponse');
 
 describe('parseGPTResponse', () => {
+  // Mock console.error to avoid cluttering test output
+  let originalConsoleError;
+  beforeEach(() => {
+    originalConsoleError = console.error;
+    console.error = jest.fn();
+  });
+  
+  afterEach(() => {
+    console.error = originalConsoleError;
+  });
   test('correctly parses valid GPT JSON output', () => {
     const gptOutput = `
       Sure! Here's the event:
