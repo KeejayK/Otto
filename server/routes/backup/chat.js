@@ -3,8 +3,9 @@ const router = express.Router();
 const axios = require('axios');
 const { OpenAI } = require('openai');
 const { classifyIntent } = require('../services/nlp/classifyIntent');
-const { createPrompt, updatePrompt, deletePrompt } = require('../services/nlp/gptPromptManager');
+const { createPrompt, updatePrompt, deletePrompt, createFollowUpPrompt } = require('../services/nlp/gptPromptManager');
 const { parseGPTResponse } = require('../services/nlp/parseResponse');
+const { formatDate, parseTimeAndApplyToDate, toISOString } = require('../services/nlp/timeHelper');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const verifyFirebaseToken = require('../middleware/auth');
@@ -53,6 +54,117 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           if (pending.action === 'update') {
             // Update event
             try {
+              console.log("Updating event with data:", {
+                eventId: pending.eventId,
+                summary: pending.title,
+                location: pending.location,
+                description: pending.description,
+                start: pending.start,
+                end: pending.end
+              });
+              
+              // Handle both ISO string dates and time-only values
+              let startISOString = pending.start;
+              let endISOString = pending.end;
+              
+              // Check if we need to parse time-only values
+              if (pending.start && (!pending.start.includes('T') || pending.start.includes(':'))) {
+                // This might be a time-only value like "5pm" or "17:00"
+                const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+                if (timePattern.test(pending.start)) {
+                  // Get the event from the API to get current date
+                  try {
+                    const eventRes = await axios.get(
+                      `http://localhost:3000/api/calendar/get-event/${pending.eventId}`,
+                      { headers: { Authorization: authHeader } }
+                    );
+                    
+                    const existingEvent = eventRes.data;
+                    const existingStart = existingEvent.start.dateTime || existingEvent.start.date;
+                    const existingEnd = existingEvent.end.dateTime || existingEvent.end.date;
+                    
+                    // Parse the time-only value and apply it to the existing date
+                    const match = pending.start.match(timePattern);
+                    if (match) {
+                      let hours = parseInt(match[1], 10);
+                      const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                      const ampm = match[3] ? match[3].toLowerCase() : null;
+                      
+                      // Adjust hours for AM/PM
+                      if (ampm === 'pm' && hours < 12) {
+                        hours += 12;
+                      } else if (ampm === 'am' && hours === 12) {
+                        hours = 0;
+                      } else if (!ampm && pending.start.includes(':')) {
+                        // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                        // hours is already correct, no adjustment needed
+                      }
+                      
+                      // Apply the new time to the existing date
+                      const existingStartDate = new Date(existingStart);
+                      existingStartDate.setHours(hours, minutes, 0, 0);
+                      startISOString = existingStartDate.toISOString();
+                      
+                      // If no end time was specified, maintain the same duration
+                      if (!pending.end || pending.end === '') {
+                        const existingStartTime = new Date(existingStart).getTime();
+                        const existingEndTime = new Date(existingEnd).getTime();
+                        const duration = existingEndTime - existingStartTime;
+                        
+                        const newEndTime = existingStartDate.getTime() + duration;
+                        endISOString = new Date(newEndTime).toISOString();
+                      }
+                    }
+                  } catch (err) {
+                    console.error("Error fetching existing event:", err);
+                  }
+                }
+              }
+              
+              // Do the same for end time if it's a time-only value
+              if (pending.end && (!pending.end.includes('T') || pending.end.includes(':'))) {
+                const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+                if (timePattern.test(pending.end) && startISOString) {
+                  // Use the start date but with the end time
+                  const match = pending.end.match(timePattern);
+                  if (match) {
+                    let hours = parseInt(match[1], 10);
+                    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                    const ampm = match[3] ? match[3].toLowerCase() : null;
+                    
+                    // Adjust hours for AM/PM
+                    if (ampm === 'pm' && hours < 12) {
+                      hours += 12;
+                    } else if (ampm === 'am' && hours === 12) {
+                      hours = 0;
+                    } else if (!ampm && pending.end.includes(':')) {
+                      // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                      // hours is already correct, no adjustment needed
+                    }
+                    
+                    // Apply the new time to the same date as start
+                    const endDate = new Date(startISOString);
+                    endDate.setHours(hours, minutes, 0, 0);
+                    endISOString = endDate.toISOString();
+                  }
+                }
+              } else if (!endISOString) {
+                // If endISOString is still not set, use whatever was in pending.end
+                const endDate = new Date(pending.end);
+                if (!isNaN(endDate.getTime())) {
+                  endISOString = endDate.toISOString();
+                }
+              }
+              
+              console.log("Final update payload:", {
+                eventId: pending.eventId,
+                summary: pending.title,
+                location: pending.location,
+                description: pending.description,
+                start: startISOString,
+                end: endISOString,
+              });
+              
               const updateRes = await axios.put(
                 'http://localhost:3000/api/calendar/modify-event',
                 {
@@ -60,8 +172,8 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                   summary: pending.title,
                   location: pending.location,
                   description: pending.description,
-                  start: pending.start,
-                  end: pending.end,
+                  start: startISOString,
+                  end: endISOString,
                 },
                 { headers: { Authorization: authHeader } }
               );
@@ -125,125 +237,49 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             }
           }
         } else {
+          // When input is not a confirmation, simply delete the pending event without responding
           delete sessionState[sessionId].pendingEvent;
-          const replyMessage = 'Action cancelled.';
-          chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
-          return res.status(200).json({ message: replyMessage });
+          
+          // Continue to process the message as a new request
         }
       } else {
         // User is providing missing info for update/create
         const missingFields = pending.missingFields;
         if (missingFields && missingFields.length > 0) {
-          const currentMissingField = missingFields[0];
-          let responseValue = userMessage.trim();
+          pending[missingFields[0]] = userMessage.trim();
+        }
+        // Check if all required fields are now present
+        const stillMissing = pending.action === 'update'
+          ? ['title', 'start', 'end'].filter(f => !pending[f])
+          : ['title', 'start', 'end'].filter(f => !pending[f]);
+        if (stillMissing.length) {
+          pending.missingFields = stillMissing;
           
-          // Process the response based on the field type for better parsing
-          if (currentMissingField === 'start') {
-            // If they provided just a time without a date, add today's date
-            if (/^\d{1,2}(:\d{2})?\s*(am|pm|AM|PM)$/.test(responseValue)) {
-              const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-              const timeMatch = responseValue.match(/(\d{1,2})(:\d{2})?\s*(am|pm|AM|PM)/);
-              
-              if (timeMatch) {
-                let hours = parseInt(timeMatch[1]);
-                const minutes = timeMatch[2] ? parseInt(timeMatch[2].substring(1)) : 0;
-                const period = timeMatch[3].toLowerCase();
-                
-                // Convert to 24-hour format
-                if (period === 'pm' && hours < 12) hours += 12;
-                if (period === 'am' && hours === 12) hours = 0;
-                
-                // Format as ISO string
-                const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
-                responseValue = `${today}T${formattedTime}`;
-              }
-            }
-            // If they provided just a date without time, add a default time
-            else if (/^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(responseValue) || 
-                    /^\d{4}-\d{2}-\d{2}$/.test(responseValue)) {
-              // Try to parse the date
-              let parsedDate;
-              if (/^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(responseValue)) {
-                // MM/DD/YYYY or MM/DD/YY or MM/DD format
-                const parts = responseValue.split('/');
-                const month = parseInt(parts[0]) - 1; // JS months are 0-indexed
-                const day = parseInt(parts[1]);
-                const year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
-                
-                // Adjust two-digit years
-                const adjustedYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
-                
-                parsedDate = new Date(adjustedYear, month, day);
-                const isoDate = parsedDate.toISOString().split('T')[0];
-                
-                // Add a default time (9 AM)
-                responseValue = `${isoDate}T09:00:00`;
-              } else {
-                // YYYY-MM-DD format
-                responseValue = `${responseValue}T09:00:00`;
-              }
-            }
-          } else if (currentMissingField === 'end') {
-            // Handle different duration formats
-            const durationMatch = responseValue.match(/(\d+)\s*(hour|hr|minute|min|m|h)/i);
-            if (durationMatch && pending.start) {
-              const amount = parseInt(durationMatch[1]);
-              const unit = durationMatch[2].toLowerCase();
-              
-              // Calculate end time based on duration
-              const startTime = new Date(pending.start);
-              if (unit.startsWith('h')) {
-                startTime.setHours(startTime.getHours() + amount);
-              } else {
-                startTime.setMinutes(startTime.getMinutes() + amount);
-              }
-              
-              responseValue = startTime.toISOString();
-            }
-          }
+          // Use createFollowUpPrompt for a more conversational follow-up
+          const missingInfo = stillMissing[0]; // Get the first missing field
+          const prompt = createFollowUpPrompt(missingInfo, pending);
           
-          // Save the processed value
-          pending[currentMissingField] = responseValue;
+          // Get a conversational prompt for the missing information
+          const completion = await openai.chat.completions.create({
+            model: 'gpt-3.5-turbo',
+            messages: [{ role: 'user', content: prompt }],
+          });
           
-          // Remove the field we just processed from missingFields
-          pending.missingFields = pending.missingFields.slice(1);
+          // Use the AI-generated follow-up question
+          const replyMessage = completion.choices[0].message.content;
           
-          // Check if we still have more fields to collect
-          if (pending.missingFields.length > 0) {
-            const nextField = pending.missingFields[0];
-            
-            // Create a specific follow-up question for the next field
-            let followUpQuestion;
-            switch (nextField) {
-              case 'title':
-                followUpQuestion = "What would you like to name this event?";
-                break;
-              case 'start':
-                followUpQuestion = "When should this event start? (Please provide a specific date and time)";
-                break;
-              case 'end':
-                followUpQuestion = "How long will this event last? (You can specify an end time or duration)";
-                break;
-              case 'location':
-                followUpQuestion = "Where will this event take place?";
-                break;
-              default:
-                followUpQuestion = `Please provide the ${nextField} for this event.`;
-            }
-            
-            chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-            chatHistory.push({ id: (Date.now() + 1).toString(), message: followUpQuestion, role: 'assistant', timestamp: new Date() });
-            return res.status(200).json({ message: followUpQuestion });
-          } else {
+          chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
+          return res.status(200).json({ message: replyMessage });
+        } else {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
           } else {
-            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
           }
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -295,7 +331,7 @@ What would you like to do today? You can ask me to:
 
 ❌ **Delete:** "Cancel my dentist appointment" 
 
-📋 **View:** "Show my calendar for this week"`;
+📋 **View:** "Show events this week"`;
       
       chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
       chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -415,7 +451,7 @@ What would you like to do today? You can ask me to:
                   : '';
                 
                 // Create a cleaner, single line format with consistent styling and more spacing
-                eventLines.push(`-   *${startTime}${endTime ? ` – ${endTime}` : ''}*   ${e.summary || 'Untitled Event'} [Edit](command:edit:${e.id}) [Delete](command:delete:${e.id})`);
+                eventLines.push(`-   *${startTime}${endTime ? ` - ${endTime}` : ''}*   ${e.summary || 'Untitled Event'} [Delete](command:delete:${e.id})`);
               });
             }
           });
@@ -424,7 +460,7 @@ What would you like to do today? You can ask me to:
         }
         break;
       }
-case 'update': {
+      case 'update': {
         // grab existing list of events
         const listRes = await axios.get(
           'http://localhost:3000/api/calendar/list-events',
@@ -441,8 +477,26 @@ case 'update': {
         const gptOutput = completion.choices[0].message.content;
         let parsed;
         try {
-          parsed = JSON.parse(gptOutput);
-        } catch {
+          // Find where the JSON starts/ends in GPT output
+          const jsonStart = gptOutput.indexOf('{');
+          const jsonEnd = gptOutput.lastIndexOf('}') + 1;
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            const jsonString = gptOutput.slice(jsonStart, jsonEnd);
+            parsed = JSON.parse(jsonString);
+          } else {
+            parsed = JSON.parse(gptOutput); // Try parsing the whole output
+          }
+          
+          console.log("Parsed JSON from GPT:", JSON.stringify(parsed));
+          
+          // Debug log for day-of-week changes
+          const dayOfWeekPattern = /\b(mon(day)?|tues?(day)?|wed(nesday)?|thur?s?(day)?|fri(day)?|sat(urday)?|sun(day)?)\b/i;
+          if (dayOfWeekPattern.test(userMessage)) {
+            console.log("Day change detected in message:", userMessage);
+            console.log("GPT response for day change:", parsed);
+          }
+        } catch (error) {
+          console.error("Error parsing JSON:", error, "Raw output:", gptOutput);
           parsed = {};
         }
         const { eventId, title, location, description, start, end } = parsed;
@@ -459,14 +513,269 @@ case 'update': {
           break;
         }
 
+        // Get the existing start and end times
+        const existingStart = existingEvent.start.dateTime || existingEvent.start.date;
+        const existingEnd = existingEvent.end.dateTime || existingEvent.end.date;
+        
+        let finalStart = existingStart;
+        let finalEnd = existingEnd;
+        
+        console.log("Existing times:", { existingStart, existingEnd });
+        console.log("Update times:", { start, end });
+        
+        // Check for day of week patterns in the user's message regardless of whether start/end is provided
+        const dayOfWeekPattern = /\b(mon(day)?|tues?(day)?|wed(nesday)?|thur?s?(day)?|fri(day)?|sat(urday)?|sun(day)?)\b/i;
+        const relativeDayPattern = /\b(tomorrow|next\s+week)\b/i;
+        const dayOfWeekMatch = userMessage.match(dayOfWeekPattern);
+        const relativeDayMatch = userMessage.match(relativeDayPattern);
+        
+        // Get full day name from any abbreviation
+        const getDayFullName = (match) => {
+          const day = match.toLowerCase();
+          if (day.startsWith('mon')) return 'monday';
+          if (day.startsWith('tue')) return 'tuesday';
+          if (day.startsWith('wed')) return 'wednesday';
+          if (day.startsWith('thu')) return 'thursday';
+          if (day.startsWith('fri')) return 'friday';
+          if (day.startsWith('sat')) return 'saturday';
+          if (day.startsWith('sun')) return 'sunday';
+          return null;
+        };
+        
+        // Handle day of week changes even if GPT returns empty time fields
+        if ((dayOfWeekMatch || relativeDayMatch) && (!start || start === '')) {
+          // Handle specific day names
+          if (dayOfWeekMatch) {
+            const dayName = getDayFullName(dayOfWeekMatch[0]);
+            
+            if (dayName) {
+              // Set the date to the next occurrence of the specified day
+              const { getNextDayOfWeek } = require('../services/nlp/timeHelper');
+              const targetDate = getNextDayOfWeek(dayName);
+              
+              if (targetDate) {
+                // Keep the original event time on the new day
+                const originalTime = new Date(existingStart);
+                targetDate.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                
+                finalStart = targetDate.toISOString();
+                console.log(`Applied day change to next ${dayName} from message:`, finalStart);
+              }
+            }
+          } 
+          // Handle relative days like "tomorrow" or "next week"
+          else if (relativeDayMatch) {
+            const relativeDay = relativeDayMatch[1].toLowerCase();
+            const originalTime = new Date(existingStart);
+            let targetDate = new Date(originalTime);
+            
+            if (relativeDay === 'tomorrow') {
+              targetDate.setDate(targetDate.getDate() + 1);
+            } else if (relativeDay.includes('next week')) {
+              targetDate.setDate(targetDate.getDate() + 7);
+            }
+            
+            finalStart = targetDate.toISOString();
+            console.log(`Applied relative day change to ${relativeDay}:`, finalStart);
+          }
+          
+          // Adjust end time to maintain duration for any day change
+          if (finalStart !== existingStart) {
+            const existingStartTime = new Date(existingStart).getTime();
+            const existingEndTime = new Date(existingEnd).getTime();
+            const duration = existingEndTime - existingStartTime;
+            
+            const newStartDate = new Date(finalStart);
+            const newEndDate = new Date(newStartDate.getTime() + duration);
+            finalEnd = newEndDate.toISOString();
+            console.log("Adjusted end time to maintain duration for day change:", finalEnd);
+          }
+        }
+        
+        // Only update times if provided in the update
+        if (start) {
+          try {
+            // Check for day of week patterns in the user's message
+            const dayOfWeekMatch = userMessage.match(dayOfWeekPattern);
+            
+            // Get full day name from any abbreviation
+            const getDayFullName = (match) => {
+              const day = match.toLowerCase();
+              if (day.startsWith('mon')) return 'monday';
+              if (day.startsWith('tue')) return 'tuesday';
+              if (day.startsWith('wed')) return 'wednesday';
+              if (day.startsWith('thu')) return 'thursday';
+              if (day.startsWith('fri')) return 'friday';
+              if (day.startsWith('sat')) return 'saturday';
+              if (day.startsWith('sun')) return 'sunday';
+              return null;
+            };
+            
+            // Check if the start time appears to be a full ISO string or just a time reference
+            const startContainsTime = start.includes('T') || start.includes(':');
+            
+            // Check if start date string has a date component we should validate for day of week correctness
+            // This is needed because the GPT might generate a date for the wrong day of the week
+            if (startContainsTime && start.includes('T') && dayOfWeekMatch) {
+              const dayName = getDayFullName(dayOfWeekMatch[0]);
+              const requestedDay = dayName ? dayName.toLowerCase() : null;
+              
+              // Try to parse the date
+              const startDate = new Date(start);
+              if (!isNaN(startDate.getTime())) {
+                // Check if the date's day of week matches the requested day of week
+                const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const dateDay = dayNames[startDate.getDay()];
+                
+                if (requestedDay && dateDay !== requestedDay) {
+                  console.log(`Day of week mismatch: Requested ${requestedDay} but date is ${dateDay}. Correcting...`);
+                  
+                  // Get the correct date for the requested day of week
+                  const { getNextDayOfWeek } = require('../services/nlp/timeHelper');
+                  const correctedDate = getNextDayOfWeek(requestedDay);
+                  
+                  // Keep the time part from the originally parsed date
+                  correctedDate.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
+                  
+                  finalStart = correctedDate.toISOString();
+                  console.log(`Corrected start date to ${requestedDay}:`, finalStart);
+                } else {
+                  // Date is valid and day of week is correct
+                  finalStart = startDate.toISOString();
+                  console.log("Updated start time from full date:", finalStart);
+                }
+              } else {
+                console.error("Invalid start time format provided:", start);
+                // If there's a day of week mention in the message but GPT failed to parse it correctly
+                if (dayOfWeekMatch) {
+                  const dayName = getDayFullName(dayOfWeekMatch[0]);
+                  
+                  if (dayName) {
+                    // Set the date to the next occurrence of the specified day
+                    const { getNextDayOfWeek } = require('../services/nlp/timeHelper');
+                    const targetDate = getNextDayOfWeek(dayName);
+                    
+                    if (targetDate) {
+                      // Keep the original event time on the new day
+                      const originalTime = new Date(existingStart);
+                      targetDate.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                      
+                      finalStart = targetDate.toISOString();
+                      console.log(`Corrected start date to next ${dayName}:`, finalStart);
+                    }
+                  }
+                }
+              }
+            } else {
+              // This might be a simple time like "5pm" or "17:00" - use the existing date but update time
+              const existingStartDate = new Date(existingStart);
+              const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+              const match = start.match(timePattern);
+              
+              if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                const ampm = match[3] ? match[3].toLowerCase() : null;
+                
+                // Adjust hours for AM/PM
+                if (ampm === 'pm' && hours < 12) {
+                  hours += 12;
+                } else if (ampm === 'am' && hours === 12) {
+                  hours = 0;
+                } else if (!ampm && start.includes(':')) {
+                  // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                  // hours is already correct, no adjustment needed
+                }
+                
+                existingStartDate.setHours(hours, minutes, 0, 0);
+                finalStart = existingStartDate.toISOString();
+                console.log("Updated start time from time-only value:", finalStart);
+              }
+            }
+            
+            // If only start time was updated but not end time, adjust end time to maintain duration
+            if (!end || finalStart !== existingStart) {
+              const existingStartDate = new Date(existingStart);
+              const existingEndDate = new Date(existingEnd);
+              const duration = existingEndDate - existingStartDate; // duration in ms
+              
+              const newStartDate = new Date(finalStart);
+              const newEndDate = new Date(newStartDate.getTime() + duration);
+              finalEnd = newEndDate.toISOString();
+              console.log("Adjusted end time to maintain duration:", finalEnd);
+            }
+          } catch (error) {
+            console.error("Error processing start time:", error);
+          }
+        }
+        
+        if (end) {
+          try {
+            // Similar logic for end time
+            const endContainsTime = end.includes('T') || end.includes(':');
+            if (endContainsTime && end.includes('T')) {
+              const endDate = new Date(end);
+              if (!isNaN(endDate.getTime())) {
+                finalEnd = endDate.toISOString();
+                console.log("Updated end time from full date:", finalEnd);
+              } else {
+                console.error("Invalid end time format provided:", end);
+                
+                // If we've already corrected the start time based on day of week, adjust end time to maintain duration
+                if (finalStart !== existingStart) {
+                  const existingStartTime = new Date(existingStart).getTime();
+                  const existingEndTime = new Date(existingEnd).getTime();
+                  const duration = existingEndTime - existingStartTime;
+                  
+                  const newStartDate = new Date(finalStart);
+                  const newEndDate = new Date(newStartDate.getTime() + duration);
+                  finalEnd = newEndDate.toISOString();
+                  console.log("Adjusted end time to maintain duration after day change:", finalEnd);
+                }
+              }
+            } else {
+              // Handle time-only specifications for end time
+              const existingEndDate = new Date(finalEnd);  // Use already adjusted finalEnd
+              const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+              const match = end.match(timePattern);
+              
+              if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                const ampm = match[3] ? match[3].toLowerCase() : null;
+                
+                // Adjust hours for AM/PM
+                if (ampm === 'pm' && hours < 12) {
+                  hours += 12;
+                } else if (ampm === 'am' && hours === 12) {
+                  hours = 0;
+                } else if (!ampm && end.includes(':')) {
+                  // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                  // hours is already correct, no adjustment needed
+                }
+                
+                existingEndDate.setHours(hours, minutes, 0, 0);
+                finalEnd = existingEndDate.toISOString();
+                console.log("Updated end time from time-only value:", finalEnd);
+              }
+            }
+          } catch (error) {
+            console.error("Error processing end time:", error);
+          }
+        }          // Format for display
+        const startDate = new Date(finalStart);
+        console.log("startDate parsed:", startDate);
+        const endDate = new Date(finalEnd);
+        console.log("endDate parsed:", endDate);
+
         // Merge existing event details with updates
         const updateData = {
           eventId,
           title: title || existingEvent.summary,
-          location: location || existingEvent.location,
-          description: description || existingEvent.description,
-          start: start || existingEvent.start.dateTime || existingEvent.start.date,
-          end: end || existingEvent.end.dateTime || existingEvent.end.date
+          location: location !== undefined ? location : (existingEvent.location || ''),
+          description: description !== undefined ? description : (existingEvent.description || ''),
+          start: finalStart,
+          end: finalEnd
         };
 
         // Ask for confirmation before updating
@@ -479,18 +788,18 @@ case 'update': {
           }
         };
         
-        // Format times for better readability
-        const startDate = new Date(updateData.start);
-        const endDate = new Date(updateData.end);
+        // Format times for better readability - ensure PM/AM is displayed
         const formattedStart = startDate.toLocaleString('en-US', {
           weekday: 'short', month: 'short', day: 'numeric', 
-          hour: 'numeric', minute: 'numeric'
+          hour: 'numeric', minute: 'numeric', hour12: true
         });
         const formattedEnd = endDate.toLocaleTimeString('en-US', {
-          hour: 'numeric', minute: 'numeric'
+          hour: 'numeric', minute: 'numeric', hour12: true
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n`;
+        console.log("Formatted times for display:", formattedStart, formattedEnd);
+        
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -549,7 +858,7 @@ case 'update': {
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n`;
+        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -614,67 +923,35 @@ case 'update': {
             return false;
           };
           
-          // Use AI-detected missing fields if available
-          let missingFields = [];
-          if (partial.missingDetails && Array.isArray(partial.missingDetails) && partial.missingDetails.length > 0) {
-            missingFields = [...partial.missingDetails];
-          } else {
-            // Fall back to our own detection logic
-            const action = partial.eventId ? 'update' : 'create';
-            const fieldsToCheck = action === 'update' 
-              ? [] // For updates, we'll use the existing event data for missing fields
-              : requiredFields;
-              
-            missingFields = fieldsToCheck.filter(f => !hasField(partial, f, action));
-          }
-          
+          // For create actions, require all fields; for update actions, be more lenient
+          const action = partial.eventId ? 'update' : 'create';
+          const fieldsToCheck = action === 'update' 
+            ? [] // For updates, we'll use the existing event data for missing fields
+            : requiredFields;
+            
+          const missingFields = fieldsToCheck.filter(f => !hasField(partial, f, action));
           if (missingFields.length) {
-            // Ask for missing details one at a time
-            const firstMissingField = missingFields[0];
-            const remainingMissingFields = missingFields.slice(1);
-            
-            // Create specific follow-up questions based on the missing field
-            let followUpQuestion = '';
-            switch (firstMissingField) {
-              case 'title':
-                followUpQuestion = "What would you like to name this event?";
-                break;
-              case 'start':
-                // Check if we're missing date or time or both
-                if (partial.start && partial.start.includes('T')) {
-                  // If we have a formatted ISO string, we're likely not missing start
-                  // This shouldn't happen, but just in case
-                  followUpQuestion = "What date and time should this event start?";
-                } else if (partial.title && partial.title.includes(" on ")) {
-                  // We might have a date but not time
-                  followUpQuestion = "What time should this event start?";
-                } else if (partial.title && partial.title.includes(" at ")) {
-                  // We might have time but not date
-                  followUpQuestion = "What date should this event be scheduled for?";
-                } else {
-                  // We're missing both date and time
-                  followUpQuestion = "When should this event start? (Please provide a specific date and time)";
-                }
-                break;
-              case 'end':
-                followUpQuestion = "How long will this event last? (You can specify an end time or duration)";
-                break;
-              case 'location':
-                followUpQuestion = "Where will this event take place?";
-                break;
-              default:
-                followUpQuestion = `Please provide the ${firstMissingField} for this event.`;
-            }
-            
             sessionState[sessionId] = {
               pendingEvent: {
                 ...partial,
-                action: partial.eventId ? 'update' : 'create',
-                missingFields: [firstMissingField, ...remainingMissingFields],
+                action: action,
+                missingFields,
               }
             };
             
-            replyMessage = followUpQuestion;
+            // Use createFollowUpPrompt for a better, more conversational follow-up
+            const missingInfo = missingFields[0]; // Get the first missing field
+            const prompt = createFollowUpPrompt(missingInfo, partial);
+            
+            // Get a conversational prompt for the missing information
+            const completion = await openai.chat.completions.create({
+              model: 'gpt-3.5-turbo',
+              messages: [{ role: 'user', content: prompt }],
+            });
+            
+            // Use the AI-generated follow-up question
+            const replyMessage = completion.choices[0].message.content;
+            
             chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
             chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
             return res.status(200).json({ message: replyMessage });
@@ -702,29 +979,6 @@ case 'update': {
         }
         
         if (invalidFields.length) {
-          // Create more informative error messages based on what's invalid
-          const fieldsWithIssues = {};
-          for (const field of invalidFields) {
-            if (field === 'start') {
-              if (!parsedEvent.start) {
-                fieldsWithIssues.start = "Could not determine when your event should start. Please specify a date and time.";
-              } else {
-                fieldsWithIssues.start = "The start time format is invalid. Please specify a clear date and time (e.g., 'tomorrow at 3pm').";
-              }
-            }
-            if (field === 'end') {
-              if (!parsedEvent.end) {
-                fieldsWithIssues.end = "Could not determine the end time or duration for your event.";
-              } else {
-                fieldsWithIssues.end = "The end time format is invalid. Please specify an end time or duration (e.g., '1 hour' or 'until 4pm').";
-              }
-            }
-          }
-
-          // Get the first field to ask about
-          const firstField = invalidFields[0];
-          const firstMessage = fieldsWithIssues[firstField];
-
           sessionState[sessionId] = {
             pendingEvent: {
               ...parsedEvent,
@@ -732,48 +986,22 @@ case 'update': {
               missingFields: invalidFields,
             }
           };
-
-          // Create a specific question for just the first missing field
-          let followUpQuestion;
-          switch (firstField) {
-            case 'start':
-              followUpQuestion = "When should this event start? Please provide a specific date and time.";
-              break;
-            case 'end':
-              if (parsedEvent.start && !isNaN(Date.parse(parsedEvent.start))) {
-                followUpQuestion = "How long will this event last? You can specify an end time or duration (e.g., '1 hour' or 'until 4pm').";
-              } else {
-                followUpQuestion = "When should this event end? Please provide a specific date and time.";
-              }
-              break;
-            default:
-              followUpQuestion = `Please provide a valid value for: ${firstField}`;
-          }
-
+          replyMessage = `⚠️ **Invalid or missing details:** ${invalidFields.map(f => `\`${f}\``).join(', ')}.\n\nPlease provide a valid value for: ${invalidFields.join(', ')}`;
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-          chatHistory.push({ id: (Date.now() + 1).toString(), message: followUpQuestion, role: 'assistant', timestamp: new Date() });
-          return res.status(200).json({ message: followUpQuestion });
+          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
+          return res.status(200).json({ message: replyMessage });
         }
 
-        // Custom confirmation message with improved formatting for better clarity
+        // Custom confirmation message
         const eventStart = new Date(parsedEvent.start);
         const eventEnd = new Date(parsedEvent.end);
         const dayOfWeek = eventStart.toLocaleDateString('en-US', { weekday: 'long' });
         const monthDay = eventStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const startTime = eventStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const endTime = eventEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        
-        // Calculate duration for better context
-        const durationMs = eventEnd.getTime() - eventStart.getTime();
-        const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
-        const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-        const durationText = durationHours > 0 
-          ? `${durationHours} hour${durationHours !== 1 ? 's' : ''}${durationMinutes > 0 ? ` ${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}` : ''}`
-          : `${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}`;
-        
         let confirmMsg = `✅ **Confirm the following event:**\n\n`;
         confirmMsg += `**${parsedEvent.title}** (${dayOfWeek} - ${monthDay})\n`;
-        confirmMsg += `- 🕒 ${startTime} - ${endTime} (${durationText})\n`;
+        confirmMsg += `- 🕒 ${startTime} - ${endTime}\n`;
         
         // Add recurring info to confirmation message if relevant
         if (parsedEvent.recurrence && parsedEvent.recurrence.length > 0) {
