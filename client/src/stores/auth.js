@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { loginWithGoogle } from '@/services/auth';
 import { auth } from '@/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
+import { processGooglePhotoUrl } from '@/utils/profileHelper';
 
 // Add this at the top of the file with other imports
 const GOOGLE_SCOPES = [
@@ -31,7 +32,7 @@ export const useAuthStore = defineStore('auth', {
         this.userProfile = {
           displayName: user.displayName || '',
           email: user.email || '',
-          photoURL: user.photoURL || '',
+          photoURL: processGooglePhotoUrl(user.photoURL),
           uid: user.uid
         };
       }
@@ -90,6 +91,63 @@ export const useAuthStore = defineStore('auth', {
     getUserProfile() {
       return this.userProfile || this.user;
     },
+    
+    refreshProfilePhoto() {
+      if (this.user && this.user.photoURL) {
+        if (this.userProfile) {
+          this.userProfile.photoURL = processGooglePhotoUrl(this.user.photoURL);
+        } else {
+          this.userProfile = {
+            displayName: this.user.displayName || '',
+            email: this.user.email || '',
+            photoURL: processGooglePhotoUrl(this.user.photoURL),
+            uid: this.user.uid
+          };
+        }
+      }
+      return this.userProfile?.photoURL;
+    },
+    
+    async refreshToken() {
+      // If we have a user but need to refresh the ID token
+      if (this.user) {
+        try {
+          this.idToken = await this.user.getIdToken(true);
+          
+          // Also refresh the profile photo URL while we're at it
+          this.refreshProfilePhoto();
+          return true;
+        } catch (error) {
+          console.error('Error refreshing token:', error);
+          return false;
+        }
+      }
+      return false;
+    },
+    
+    async reloadUserProfile() {
+      // Force a refresh of the user data from Firebase
+      if (this.user) {
+        try {
+          await this.user.reload();
+          
+          // Update the userProfile with fresh data
+          if (this.user.photoURL) {
+            this.userProfile = {
+              ...this.userProfile,
+              displayName: this.user.displayName || this.userProfile?.displayName || '',
+              email: this.user.email || this.userProfile?.email || '',
+              photoURL: processGooglePhotoUrl(this.user.photoURL),
+            };
+          }
+          return true;
+        } catch (error) {
+          console.error('Error reloading user profile:', error);
+          return false;
+        }
+      }
+      return false;
+    },
 
     get isAuthenticated() {
       return !!this.user;
@@ -109,7 +167,7 @@ export const useAuthStore = defineStore('auth', {
           this.userProfile = {
             displayName: user.displayName || '',
             email: user.email || '',
-            photoURL: user.photoURL || '',
+            photoURL: processGooglePhotoUrl(user.photoURL),
             uid: user.uid
           };
         } else {
