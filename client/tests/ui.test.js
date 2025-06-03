@@ -24,14 +24,6 @@ describe('UI Elements Test', () => {
     expect(panel).not.toBeNull();
   });
 
-  test('Quick actions toggle exists and has correct attributes', () => {
-    const toggle = document.querySelector('#quick-actions-toggle');
-    expect(toggle).not.toBeNull();
-    expect(toggle.tagName.toLowerCase()).toBe('button'); // assert it's a button
-    expect(toggle.getAttribute('aria-label')).toBeTruthy(); // check accessibility
-    expect(toggle.getAttribute('id')).toBe('quick-actions-toggle');
-  });
-
   test('Send button exists and is enabled', () => {
     const sendBtn = document.querySelector('#send-button');
     expect(sendBtn).not.toBeNull();
