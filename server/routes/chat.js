@@ -168,6 +168,52 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     const intent = await classifyIntent(userMessage);
     console.log(`Intent classified as: ${intent}`);
 
+    // Special case for greetings before handling unclear inputs
+    const greetingPattern = /^(hi|hello|hey|greetings|howdy|hi there|hey there|hello there|good morning|good afternoon|good evening)$/i;
+    if (greetingPattern.test(userMessage.trim())) {
+      const currentHour = new Date().getHours();
+      let greeting = "Hello";
+      
+      if (currentHour < 12) {
+        greeting = "Good morning";
+      } else if (currentHour < 18) {
+        greeting = "Good afternoon";
+      } else {
+        greeting = "Good evening";
+      }
+      
+      const replyMessage = `${greeting}! 👋 I'm your calendar assistant. I can help you manage your schedule.
+
+What would you like to do today? You can ask me to:
+- Create a new event
+- Check your schedule
+- Update an existing event
+- Remove an event from your calendar`;
+      
+      chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+      chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
+      return res.status(200).json({ message: replyMessage });
+    }
+
+    // Handle unclear input specifically when classified as 'unclear'
+    if (intent === 'unclear') {
+      // More helpful response that guides the user on what they can say
+      const replyMessage = ` I didn’t quite get that. 
+      Try something like:
+
+📅 **Create:** "Add meeting with John tomorrow at 3pm" 
+
+🔄 **Update:** "Change my Friday meeting to 2pm"
+
+❌ **Delete:** "Cancel my dentist appointment" 
+
+📋 **View:** "Show my calendar for this week"`;
+      
+      chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+      chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
+      return res.status(200).json({ message: replyMessage });
+    }
+
     let replyMessage;
     let type = intent;
     let calendarLink;
