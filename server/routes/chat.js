@@ -353,119 +353,202 @@ What would you like to do today? You can ask me to:
 
     switch (intent) {
       case 'list': {
-        // List existing events
+        const userMessage = (req.body.message || '').toLowerCase(); // Get user message
+
         const listRes = await axios.get(
           'http://localhost:3000/api/calendar/list-events',
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;
+
         if (events.length === 0) {
-          replyMessage = '📅 **You have no upcoming events.**';
+          replyMessage = '📅 **You have no upcoming events at all.**';
         } else {
-          // Group events by day of the week (including weekends)
           const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           const today = new Date();
-          today.setHours(0, 0, 0, 0); // Set to beginning of today
+          today.setHours(0, 0, 0, 0); // Start of today
+
+          let filterStartDate = new Date(today);
+          let filterEndDate = new Date(today);
+          let replyTitle = '📅 **EVENTS THIS WEEK**'; // Default title
           
-          // Get today's day of week (0-6)
-          const todayIdx = today.getDay();
-          
-          // Calculate the end of the current week (Saturday 23:59:59)
-          const endOfWeek = new Date(today);
-          endOfWeek.setDate(today.getDate() + (6 - todayIdx)); // Go to Saturday
-          endOfWeek.setHours(23, 59, 59, 999); // End of day
-          
-          // Filter events to only include those from today to end of week
-          const filteredEvents = events.filter(e => {
-            const eventDate = new Date(e.start.dateTime || e.start.date);
-            return eventDate >= today && eventDate <= endOfWeek;
-          });
-          
-          // Group by day of week
-          const grouped = {};
-          for (const e of filteredEvents) {
-            const start = new Date(e.start.dateTime || e.start.date);
-            const dayIdx = start.getDay();
-            const dayName = daysOfWeek[dayIdx];
-            
-            if (!grouped[dayName]) grouped[dayName] = [];
-            grouped[dayName].push(e);
-          }
-          
-          // Determine event type for styling
-          const getEventType = (summary) => {
-            const lowerSummary = summary ? summary.toLowerCase() : '';
-            if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
-              return 'class-event';
-            } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment') || lowerSummary.includes('call')) {
-              return 'meeting-event';
-            } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due') || lowerSummary.includes('assignment')) {
-              return 'deadline-event';
-            } else {
-              return '';
-            }
-          };
-          
-          // Get appropriate emoji for event type
-          const getEventEmoji = (summary) => {
-            const lowerSummary = summary ? summary.toLowerCase() : '';
-            if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
-              return '📚';
-            } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment')) {
-              return '👥';
-            } else if (lowerSummary.includes('call') || lowerSummary.includes('zoom')) {
-              return '📞';
-            } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due')) {
-              return '⏰';
-            } else if (lowerSummary.includes('assignment') || lowerSummary.includes('homework')) {
-              return '📝';
-            } else {
-              return '📌';
-            }
-          };
-          
-          // Create a more visually appealing markdown output for events
-          let eventLines = [];
-          eventLines.push('## EVENTS THIS WEEK');
-          
-          // Get date object for organized display
-          const getDateForDay = (day) => {
-            const today = new Date();
-            const todayDayIndex = today.getDay(); // 0 (Sunday) to 6 (Saturday)
-            const dayIndex = daysOfWeek.indexOf(day);
-            const diff = dayIndex - todayDayIndex;
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + diff);
-            return targetDate;
-          };
-          
-          daysOfWeek.forEach(day => {
-            if (grouped[day]) {
-              // Format day headers similar to the calendar view (DAY, MONTH DAY)
-              const dateForDay = getDateForDay(day);
-              const dayNumber = dateForDay.getDate();
-              const monthAbbrev = dateForDay.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-              
-              // Add day heading with spacing between day/date and extra spacing between days
-              eventLines.push(`\n\n### ${dayNumber} ${monthAbbrev}   ${day.substring(0, 3).toUpperCase()}`);
-              
-              grouped[day].forEach((e, idx) => {
-                const start = new Date(e.start.dateTime || e.start.date);
-                const end = new Date(e.end.dateTime || e.end.date);
-                const startTime = e.start.dateTime
-                  ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-                  : 'All day';
-                const endTime = e.end.dateTime
-                  ? end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-                  : '';
+          // Determine date range based on userMessage
+          if (userMessage.includes('today')) {
+            filterEndDate = new Date(filterStartDate); // Start date is already today
+            filterEndDate.setHours(23, 59, 59, 999);
+            replyTitle = '📅 **EVENTS TODAY**';
+          } else if (userMessage.includes('tomorrow')) {
+            filterStartDate.setDate(today.getDate() + 1);
+            filterStartDate.setHours(0, 0, 0, 0);
+            filterEndDate = new Date(filterStartDate);
+            filterEndDate.setHours(23, 59, 59, 999);
+            replyTitle = '📅 **EVENTS TOMORROW**';
+          } else if (userMessage.includes('next week')) {
+            let daysToAdd = 7 - today.getDay(); // Days to get to next Sunday
+            if (today.getDay() === 0) daysToAdd = 7; // If today is Sunday, "next week" starts 7 days from now
+
+            filterStartDate = new Date(today);
+            filterStartDate.setDate(today.getDate() + daysToAdd);
+            filterStartDate.setHours(0, 0, 0, 0);
+
+            filterEndDate = new Date(filterStartDate);
+            filterEndDate.setDate(filterStartDate.getDate() + 6); // End of next Saturday
+            filterEndDate.setHours(23, 59, 59, 999);
+            replyTitle = '📅 **EVENTS NEXT WEEK**';
+          } else {
+            let dayMatched = false;
+            for (const dayFullName of daysOfWeek) {
+              const dayToMatch = dayFullName.toLowerCase();
+              if (userMessage.includes(dayToMatch)) {
+                const targetDayIndex = daysOfWeek.indexOf(dayFullName);
+                const currentDayIndex = today.getDay();
+                let dayDiff = targetDayIndex - currentDayIndex;
                 
-                // Create a cleaner, single line format with consistent styling and more spacing
-                eventLines.push(`-   *${startTime}${endTime ? ` - ${endTime}` : ''}*   ${e.summary || 'Untitled Event'} [Delete](command:delete:${e.id})`);
-              });
+                if (dayDiff < 0 || (userMessage.includes('next') && userMessage.includes(dayToMatch))) {
+                    dayDiff += 7;
+                }
+
+                filterStartDate = new Date(today);
+                filterStartDate.setDate(today.getDate() + dayDiff);
+                filterStartDate.setHours(0, 0, 0, 0);
+
+                filterEndDate = new Date(filterStartDate);
+                filterEndDate.setHours(23, 59, 59, 999);
+                replyTitle = `📅 **EVENTS FOR ${dayFullName.toUpperCase()}**`;
+                dayMatched = true;
+                break;
+              }
             }
+            if (!dayMatched) { // Default to "this week" (from today to end of current Saturday)
+              const todayIdx = today.getDay();
+              filterStartDate = new Date(today); // Start of today
+              filterEndDate = new Date(today);
+              filterEndDate.setDate(today.getDate() + (6 - todayIdx)); // Go to Saturday
+              filterEndDate.setHours(23, 59, 59, 999); // End of day
+            }
+          }
+
+          // Filter events to the determined range (events that overlap with the range)
+          const filteredEvents = events.filter(e => {
+            const eventStart = new Date(e.start.dateTime || e.start.date);
+            const eventEnd = new Date(e.end.dateTime || e.end.date);
+            // Ensure all-day events (which are YYYY-MM-DD, parsed as UTC midnight) are handled correctly
+            // by effectively making their end time the end of that day for comparison.
+            let effectiveEventEnd = eventEnd;
+            if (e.start.date && !e.start.dateTime) { // All-day event
+                effectiveEventEnd = new Date(eventEnd);
+                effectiveEventEnd.setHours(23, 59, 59, 999);
+            }
+            return eventStart <= filterEndDate && effectiveEventEnd >= filterStartDate;
           });
-          
-          replyMessage = eventLines.join('\n');
+
+          if (filteredEvents.length === 0) {
+            if (userMessage.includes('today')) {
+                replyMessage = '📅 **No events scheduled for today.**';
+            } else if (userMessage.includes('tomorrow')) {
+                replyMessage = '📅 **No events scheduled for tomorrow.**';
+            } else if (userMessage.includes('next week')) {
+                replyMessage = '📅 **No events scheduled for next week.**';
+            } else {
+                let dayMatchedForEmptyMessage = false;
+                for (const dayFullName of daysOfWeek) {
+                    if (userMessage.includes(dayFullName.toLowerCase())) {
+                        replyMessage = `📅 **No events scheduled for ${dayFullName}.**`;
+                        dayMatchedForEmptyMessage = true;
+                        break;
+                    }
+                }
+                if (!dayMatchedForEmptyMessage) {
+                    replyMessage = '📅 **You have no upcoming events in this timeframe.**';
+                }
+            }
+          } else {
+            // Group events by day of the week (including weekends)
+            const grouped = {};
+            for (const e of filteredEvents) {
+              const start = new Date(e.start.dateTime || e.start.date);
+              const dayIdx = start.getDay();
+              const dayName = daysOfWeek[dayIdx];
+              
+              if (!grouped[dayName]) grouped[dayName] = [];
+              grouped[dayName].push(e);
+            }
+            
+            // Determine event type for styling
+            const getEventType = (summary) => {
+              const lowerSummary = summary ? summary.toLowerCase() : '';
+              if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
+                return 'class-event';
+              } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment') || lowerSummary.includes('call')) {
+                return 'meeting-event';
+              } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due') || lowerSummary.includes('assignment')) {
+                return 'deadline-event';
+              } else {
+                return '';
+              }
+            };
+            
+            // Get appropriate emoji for event type
+            const getEventEmoji = (summary) => {
+              const lowerSummary = summary ? summary.toLowerCase() : '';
+              if (lowerSummary.includes('class') || lowerSummary.includes('lecture') || lowerSummary.includes('course')) {
+                return '📚';
+              } else if (lowerSummary.includes('meeting') || lowerSummary.includes('appointment')) {
+                return '👥';
+              } else if (lowerSummary.includes('call') || lowerSummary.includes('zoom')) {
+                return '📞';
+              } else if (lowerSummary.includes('deadline') || lowerSummary.includes('due')) {
+                return '⏰';
+              } else if (lowerSummary.includes('assignment') || lowerSummary.includes('homework')) {
+                return '📝';
+              } else {
+                return '📌';
+              }
+            };
+            
+            // Create a more visually appealing markdown output for events
+            let eventLines = [];
+            eventLines.push(replyTitle);
+            
+            // Get date object for organized display
+            const getDateForDay = (day) => {
+              const today = new Date();
+              const todayDayIndex = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+              const dayIndex = daysOfWeek.indexOf(day);
+              const diff = dayIndex - todayDayIndex;
+              const targetDate = new Date(today);
+              targetDate.setDate(today.getDate() + diff);
+              return targetDate;
+            };
+            
+            daysOfWeek.forEach(day => {
+              if (grouped[day]) {
+                // Format day headers similar to the calendar view (DAY, MONTH DAY)
+                const dateForDay = getDateForDay(day);
+                const dayNumber = dateForDay.getDate();
+                const monthAbbrev = dateForDay.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+                
+                // Add day heading with spacing between day/date and extra spacing between days
+                eventLines.push(`\n\n### ${dayNumber} ${monthAbbrev}   ${day.substring(0, 3).toUpperCase()}`);
+                
+                grouped[day].forEach((e, idx) => {
+                  const start = new Date(e.start.dateTime || e.start.date);
+                  const end = new Date(e.end.dateTime || e.end.date);
+                  const startTime = e.start.dateTime
+                    ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                    : 'All day';
+                  const endTime = e.end.dateTime
+                    ? end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                    : '';
+                  
+                  // Create a cleaner, single line format with consistent styling and more spacing
+                  eventLines.push(`-   *${startTime}${endTime ? ` - ${endTime}` : ''}*   ${e.summary || 'Untitled Event'} [Delete](command:delete:${e.id})`);
+                });
+              }
+            });
+            
+            replyMessage = eventLines.join('\n');
+          }
         }
         break;
       }
