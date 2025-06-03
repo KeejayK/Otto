@@ -114,7 +114,10 @@ export const useAuthStore = defineStore('auth', {
             photoURL: user.photoURL || '',
             uid: user.uid
           };
+
+          console.log('[AuthStore] signed in as:', this.userProfile);
         } else {
+          console.log('[AuthStore] no user currently signed in');
           this.user = null;
           this.idToken = null;
           this.accessToken = null;
