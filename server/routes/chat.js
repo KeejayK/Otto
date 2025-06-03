@@ -5,6 +5,7 @@ const { OpenAI } = require('openai');
 const { classifyIntent } = require('../services/nlp/classifyIntent');
 const { createPrompt, updatePrompt, deletePrompt, createFollowUpPrompt } = require('../services/nlp/gptPromptManager');
 const { parseGPTResponse } = require('../services/nlp/parseResponse');
+const { formatDate, parseTimeAndApplyToDate, toISOString } = require('../services/nlp/timeHelper');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const verifyFirebaseToken = require('../middleware/auth');
@@ -53,6 +54,117 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           if (pending.action === 'update') {
             // Update event
             try {
+              console.log("Updating event with data:", {
+                eventId: pending.eventId,
+                summary: pending.title,
+                location: pending.location,
+                description: pending.description,
+                start: pending.start,
+                end: pending.end
+              });
+              
+              // Handle both ISO string dates and time-only values
+              let startISOString = pending.start;
+              let endISOString = pending.end;
+              
+              // Check if we need to parse time-only values
+              if (pending.start && (!pending.start.includes('T') || pending.start.includes(':'))) {
+                // This might be a time-only value like "5pm" or "17:00"
+                const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+                if (timePattern.test(pending.start)) {
+                  // Get the event from the API to get current date
+                  try {
+                    const eventRes = await axios.get(
+                      `http://localhost:3000/api/calendar/get-event/${pending.eventId}`,
+                      { headers: { Authorization: authHeader } }
+                    );
+                    
+                    const existingEvent = eventRes.data;
+                    const existingStart = existingEvent.start.dateTime || existingEvent.start.date;
+                    const existingEnd = existingEvent.end.dateTime || existingEvent.end.date;
+                    
+                    // Parse the time-only value and apply it to the existing date
+                    const match = pending.start.match(timePattern);
+                    if (match) {
+                      let hours = parseInt(match[1], 10);
+                      const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                      const ampm = match[3] ? match[3].toLowerCase() : null;
+                      
+                      // Adjust hours for AM/PM
+                      if (ampm === 'pm' && hours < 12) {
+                        hours += 12;
+                      } else if (ampm === 'am' && hours === 12) {
+                        hours = 0;
+                      } else if (!ampm && pending.start.includes(':')) {
+                        // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                        // hours is already correct, no adjustment needed
+                      }
+                      
+                      // Apply the new time to the existing date
+                      const existingStartDate = new Date(existingStart);
+                      existingStartDate.setHours(hours, minutes, 0, 0);
+                      startISOString = existingStartDate.toISOString();
+                      
+                      // If no end time was specified, maintain the same duration
+                      if (!pending.end || pending.end === '') {
+                        const existingStartTime = new Date(existingStart).getTime();
+                        const existingEndTime = new Date(existingEnd).getTime();
+                        const duration = existingEndTime - existingStartTime;
+                        
+                        const newEndTime = existingStartDate.getTime() + duration;
+                        endISOString = new Date(newEndTime).toISOString();
+                      }
+                    }
+                  } catch (err) {
+                    console.error("Error fetching existing event:", err);
+                  }
+                }
+              }
+              
+              // Do the same for end time if it's a time-only value
+              if (pending.end && (!pending.end.includes('T') || pending.end.includes(':'))) {
+                const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+                if (timePattern.test(pending.end) && startISOString) {
+                  // Use the start date but with the end time
+                  const match = pending.end.match(timePattern);
+                  if (match) {
+                    let hours = parseInt(match[1], 10);
+                    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                    const ampm = match[3] ? match[3].toLowerCase() : null;
+                    
+                    // Adjust hours for AM/PM
+                    if (ampm === 'pm' && hours < 12) {
+                      hours += 12;
+                    } else if (ampm === 'am' && hours === 12) {
+                      hours = 0;
+                    } else if (!ampm && pending.end.includes(':')) {
+                      // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                      // hours is already correct, no adjustment needed
+                    }
+                    
+                    // Apply the new time to the same date as start
+                    const endDate = new Date(startISOString);
+                    endDate.setHours(hours, minutes, 0, 0);
+                    endISOString = endDate.toISOString();
+                  }
+                }
+              } else if (!endISOString) {
+                // If endISOString is still not set, use whatever was in pending.end
+                const endDate = new Date(pending.end);
+                if (!isNaN(endDate.getTime())) {
+                  endISOString = endDate.toISOString();
+                }
+              }
+              
+              console.log("Final update payload:", {
+                eventId: pending.eventId,
+                summary: pending.title,
+                location: pending.location,
+                description: pending.description,
+                start: startISOString,
+                end: endISOString,
+              });
+              
               const updateRes = await axios.put(
                 'http://localhost:3000/api/calendar/modify-event',
                 {
@@ -60,8 +172,8 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                   summary: pending.title,
                   location: pending.location,
                   description: pending.description,
-                  start: pending.start,
-                  end: pending.end,
+                  start: startISOString,
+                  end: endISOString,
                 },
                 { headers: { Authorization: authHeader } }
               );
@@ -366,8 +478,19 @@ What would you like to do today? You can ask me to:
         const gptOutput = completion.choices[0].message.content;
         let parsed;
         try {
-          parsed = JSON.parse(gptOutput);
-        } catch {
+          // Find where the JSON starts/ends in GPT output
+          const jsonStart = gptOutput.indexOf('{');
+          const jsonEnd = gptOutput.lastIndexOf('}') + 1;
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            const jsonString = gptOutput.slice(jsonStart, jsonEnd);
+            parsed = JSON.parse(jsonString);
+          } else {
+            parsed = JSON.parse(gptOutput); // Try parsing the whole output
+          }
+          
+          console.log("Parsed JSON from GPT:", JSON.stringify(parsed));
+        } catch (error) {
+          console.error("Error parsing JSON:", error, "Raw output:", gptOutput);
           parsed = {};
         }
         const { eventId, title, location, description, start, end } = parsed;
@@ -391,36 +514,117 @@ What would you like to do today? You can ask me to:
         let finalStart = existingStart;
         let finalEnd = existingEnd;
         
+        console.log("Existing times:", { existingStart, existingEnd });
+        console.log("Update times:", { start, end });
+        
         // Only update times if provided in the update
         if (start) {
-          finalStart = start;
-          
-          // If only start time was updated but not end time, adjust end time to maintain duration
-          if (!end) {
-            const existingStartDate = new Date(existingStart);
-            const existingEndDate = new Date(existingEnd);
-            const duration = existingEndDate - existingStartDate; // duration in ms
+          try {
+            // Check if the start time appears to be a full ISO string or just a time reference
+            const startContainsTime = start.includes('T') || start.includes(':');
+            if (startContainsTime && start.includes('T')) {
+              // This is a full date+time specification with a T separator
+              const startDate = new Date(start);
+              if (!isNaN(startDate.getTime())) {
+                finalStart = startDate.toISOString();
+                console.log("Updated start time from full date:", finalStart);
+              } else {
+                console.error("Invalid start time format provided:", start);
+              }
+            } else {
+              // This might be a simple time like "5pm" or "17:00" - use the existing date but update time
+              const existingStartDate = new Date(existingStart);
+              const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+              const match = start.match(timePattern);
+              
+              if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                const ampm = match[3] ? match[3].toLowerCase() : null;
+                
+                // Adjust hours for AM/PM
+                if (ampm === 'pm' && hours < 12) {
+                  hours += 12;
+                } else if (ampm === 'am' && hours === 12) {
+                  hours = 0;
+                } else if (!ampm && start.includes(':')) {
+                  // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                  // hours is already correct, no adjustment needed
+                }
+                
+                existingStartDate.setHours(hours, minutes, 0, 0);
+                finalStart = existingStartDate.toISOString();
+                console.log("Updated start time from time-only value:", finalStart);
+              }
+            }
             
-            const newStartDate = new Date(start);
-            const newEndDate = new Date(newStartDate.getTime() + duration);
-            finalEnd = newEndDate.toISOString();
+            // If only start time was updated but not end time, adjust end time to maintain duration
+            if (!end) {
+              const existingStartDate = new Date(existingStart);
+              const existingEndDate = new Date(existingEnd);
+              const duration = existingEndDate - existingStartDate; // duration in ms
+              
+              const newStartDate = new Date(finalStart);
+              const newEndDate = new Date(newStartDate.getTime() + duration);
+              finalEnd = newEndDate.toISOString();
+              console.log("Adjusted end time to maintain duration:", finalEnd);
+            }
+          } catch (error) {
+            console.error("Error processing start time:", error);
           }
         }
         
         if (end) {
-          finalEnd = end;
-        }
-        
-        // Format for display
+          try {
+            // Similar logic for end time
+            const endContainsTime = end.includes('T') || end.includes(':');
+            if (endContainsTime && end.includes('T')) {
+              const endDate = new Date(end);
+              if (!isNaN(endDate.getTime())) {
+                finalEnd = endDate.toISOString();
+                console.log("Updated end time from full date:", finalEnd);
+              }
+            } else {
+              // Handle time-only specifications for end time
+              const existingEndDate = new Date(finalEnd);  // Use already adjusted finalEnd
+              const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
+              const match = end.match(timePattern);
+              
+              if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                const ampm = match[3] ? match[3].toLowerCase() : null;
+                
+                // Adjust hours for AM/PM
+                if (ampm === 'pm' && hours < 12) {
+                  hours += 12;
+                } else if (ampm === 'am' && hours === 12) {
+                  hours = 0;
+                } else if (!ampm && end.includes(':')) {
+                  // If format is "HH:MM" with no AM/PM, assume 24-hour format
+                  // hours is already correct, no adjustment needed
+                }
+                
+                existingEndDate.setHours(hours, minutes, 0, 0);
+                finalEnd = existingEndDate.toISOString();
+                console.log("Updated end time from time-only value:", finalEnd);
+              }
+            }
+          } catch (error) {
+            console.error("Error processing end time:", error);
+          }
+        }          // Format for display
         const startDate = new Date(finalStart);
+        console.log("startDate parsed:", startDate);
         const endDate = new Date(finalEnd);
+        console.log("endDate parsed:", endDate);
 
         // Merge existing event details with updates
         const updateData = {
           eventId,
           title: title || existingEvent.summary,
-          location: location || existingEvent.location || '',
-          description: description || existingEvent.description || '',
+          location: location !== undefined ? location : (existingEvent.location || ''),
+          description: description !== undefined ? description : (existingEvent.description || ''),
           start: finalStart,
           end: finalEnd
         };
@@ -435,14 +639,16 @@ What would you like to do today? You can ask me to:
           }
         };
         
-        // Format times for better readability
+        // Format times for better readability - ensure PM/AM is displayed
         const formattedStart = startDate.toLocaleString('en-US', {
           weekday: 'short', month: 'short', day: 'numeric', 
-          hour: 'numeric', minute: 'numeric'
+          hour: 'numeric', minute: 'numeric', hour12: true
         });
         const formattedEnd = endDate.toLocaleTimeString('en-US', {
-          hour: 'numeric', minute: 'numeric'
+          hour: 'numeric', minute: 'numeric', hour12: true
         });
+        
+        console.log("Formatted times for display:", formattedStart, formattedEnd);
         
         replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });

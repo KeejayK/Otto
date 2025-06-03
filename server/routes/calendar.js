@@ -152,18 +152,22 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
     console.log('Updating event');
 
     // Build the event resource
+    // Log the input received from the client
+    console.log('Update request received with times:', { start, end });
+    
     const startDate = new Date(start);
     const endDate = new Date(end);
 
     // Validate dates
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.error('Invalid date format received:', { start, end });
       return res.status(400).json({ error: 'Invalid date format for start or end time' });
     }
 
     const isoStart = startDate.toISOString();
     const isoEnd = endDate.toISOString();
 
-    console.log(`${isoStart}, ${isoEnd}`);
+    console.log(`Parsed and converted times: ${isoStart}, ${isoEnd}`);
 
     // Keep existing fields if not provided in the update
     const event = {

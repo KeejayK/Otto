@@ -1,15 +1,23 @@
-function createPrompt(userInput) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+function formatTimeForPrompt() {
   const now = new Date();
-  const currentHour = now.getHours();
-  const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+  return {
+    date: now.toLocaleDateString('en-CA'),
+    time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }),
+    dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
+    hour24: now.getHours(),
+    minute: now.getMinutes()
+  };
+}
+
+function createPrompt(userInput) {
+  const timeContext = formatTimeForPrompt();
   
   return `
 You are an expert assistant that extracts calendar event details from natural language input.
 
 IMPORTANT CONTEXT:
-- Today is ${today} (${dayOfWeek})
-- Current time is approximately ${currentHour}:00
+- Today is ${timeContext.date} (${timeContext.dayOfWeek})
+- Current time is approximately ${timeContext.time}
 - The user wants to create a calendar event
 
 Parse the following message and return a JSON object with these fields:
@@ -20,12 +28,20 @@ Parse the following message and return a JSON object with these fields:
 - end: string (ISO 8601 format)
 
 INTERPRETATION RULES:
-   
+
 1. For relative dates:
    - "Today" refers to current date
    - "Tomorrow" refers to next day
    - "Next [day]" refers to the next occurrence of that weekday
    - Day names refer to the upcoming occurrence of that day
+
+2. For durations:
+   - Meetings/calls: 30-60 minutes (default: 60 min)
+   - Classes/lectures: 50-90 minutes (default: 60 min)
+   - Lunches/coffees: 60 minutes
+   - Dinners: 60 minutes
+   - Appointments: 60 minutes
+   - Conferences/workshops: full day (9 AM - 5 PM)
 
 2. For recurring events mentions:
    - Check for patterns like "every Monday", "weekly", "daily", etc.
@@ -45,9 +61,7 @@ Respond only with a valid JSON object. Do not include any explanation or extra t
 }
 
 function updatePrompt(userInput, events) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-  const now = new Date();
-  const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const timeContext = formatTimeForPrompt();
   
   // Enhanced event listing with more structured information
   const listText = events.length
@@ -68,8 +82,10 @@ function updatePrompt(userInput, events) {
           }) : '';
           
           return `ID: ${e.id}
-Title: ${e.summary}
+Title: ${e.summary || 'Untitled'}
 When: ${start}${end ? ` to ${end}` : ''}
+Raw Start: ${startTime}
+Raw End: ${endTime}
 ${e.location ? `Location: ${e.location}\n` : ''}`;
         })
         .join('\n\n')
@@ -79,9 +95,9 @@ ${e.location ? `Location: ${e.location}\n` : ''}`;
 You are an expert calendar assistant tasked with identifying and updating existing calendar events.
 
 IMPORTANT CONTEXT:
-- Today is ${today} (${dayOfWeek})
+- Today is ${timeContext.date} (${timeContext.dayOfWeek})
 - The user wants to modify an existing event
-- Current time is ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' })}
+- Current time is ${timeContext.time}
 
 USER'S CALENDAR EVENTS:
 ${listText}
@@ -108,8 +124,8 @@ INSTRUCTIONS:
    - title: string (new title if changing, empty string if not changing)
    - location: string (new location if changing, empty string if not changing)
    - description: string (new description if changing, empty string if not changing)
-   - start: string (new start time in ISO 8601 format if changing, empty string if not changing)
-   - end: string (new end time in ISO 8601 format if changing, empty string if not changing)
+   - start: string (new start time - IMPORTANT: if changing only the time and not the date, simply return the time like "5pm" or "17:00")
+   - end: string (new end time - IMPORTANT: if changing only the time and not the date, simply return the time like "6pm" or "18:00")
 
 4. For date/time modifications:
    - Convert all times to ISO 8601 format with timezone
@@ -118,12 +134,52 @@ INSTRUCTIONS:
    - If only time is mentioned (e.g., "change to 3pm"), keep the same date but update the hours and minutes
 
 TIME CONVERSION RULES:
-- If user says "change to 1pm", interpret this as 13:00:00 on the same day as the original event
+- If user says "change to 1pm", interpret this as 13:00:00 (1:00 PM) on the same day as the original event
+- If user says "change to 5pm", interpret this as 17:00:00 (5:00 PM) on the same day as the original event
 - If user says "move to Friday", keep the same time but change the date to the next Friday
 - If user says "change to tomorrow at 2pm", change both date and time components
 - If only specifying a start time change, adjust end time to maintain the original duration
+- Always convert time exactly as specified - if user says 5pm, use 17:00:00, not any other time
 
 USER'S MESSAGE: "${userInput}"
+
+EXAMPLES:
+- If user says "change my meeting to 5pm":
+  {
+    "eventId": "abc123",
+    "title": "",
+    "location": "",
+    "description": "",
+    "start": "5pm",
+    "end": ""
+  }
+- If user says "change my meeting to 1pm":
+  {
+    "eventId": "abc123",
+    "title": "",
+    "location": "",
+    "description": "",
+    "start": "1pm", 
+    "end": ""
+  }
+- If user says "update my meeting title to Team Standup":
+  {
+    "eventId": "abc123",
+    "title": "Team Standup",
+    "location": "",
+    "description": "",
+    "start": "",
+    "end": ""
+  }
+- If user wants to change both time and date:
+  {
+    "eventId": "abc123",
+    "title": "",
+    "location": "",
+    "description": "",
+    "start": "2025-06-05T17:00:00.000Z",
+    "end": "2025-06-05T18:00:00.000Z"
+  }
 
 Return ONLY a valid JSON object with the fields above. No explanations or additional text.
   `;
