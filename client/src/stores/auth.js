@@ -36,7 +36,7 @@ export const useAuthStore = defineStore('auth', {
         };
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/auth/google`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/google`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${idToken}`,
@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/auth/calendar-access`,
+          `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/calendar-access`,
           {
             method: 'POST',
             headers: {
