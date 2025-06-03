@@ -1,3 +1,9 @@
+jest.mock('openai', () => ({
+  OpenAI: jest.fn().mockImplementation(() => ({
+    chat: { completions: { create: jest.fn() } }
+  }))
+}));
+
 const request = require('supertest');
 const app = require('../app');
 const { google } = require('googleapis');
