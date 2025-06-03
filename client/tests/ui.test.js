@@ -1,6 +1,8 @@
 /**
  * @jest-environment jsdom
  */
+import { mount } from '@vue/test-utils'
+import HomeView from '@/views/HomeView.vue'
 
 const fs = require('fs');
 const path = require('path');
@@ -51,3 +53,24 @@ describe('UI Elements Test', () => {
   });
   
 });
+
+describe('HomeView.vue', () => {
+  it('matches the snapshot', () => {
+    const wrapper = mount(HomeView)
+    expect(wrapper.html()).toMatchSnapshot()
+  })
+
+  it('sends a message and displays it in chat panel', async () => {
+    const wrapper = mount(HomeView)
+
+    const input = wrapper.find('#message-input')
+    const button = wrapper.find('#send-button')
+
+    await input.setValue('Hello Vue!')
+    await button.trigger('click')
+
+    const messages = wrapper.findAll('.chat-panel')
+    expect(messages).toHaveLength(1)
+    expect(messages[0].text()).toBe('Hello Vue!')
+  })
+})
