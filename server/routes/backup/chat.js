@@ -3,7 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const { OpenAI } = require('openai');
 const { classifyIntent } = require('../services/nlp/classifyIntent');
-const { createPrompt, updatePrompt, deletePrompt, createFollowUpPrompt } = require('../services/nlp/gptPromptManager');
+const { createPrompt, updatePrompt, deletePrompt } = require('../services/nlp/gptPromptManager');
 const { parseGPTResponse } = require('../services/nlp/parseResponse');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -135,32 +135,107 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         // User is providing missing info for update/create
         const missingFields = pending.missingFields;
         if (missingFields && missingFields.length > 0) {
-          pending[missingFields[0]] = userMessage.trim();
-        }
-        // Check if all required fields are now present
-        const stillMissing = pending.action === 'update'
-          ? ['title', 'start', 'end'].filter(f => !pending[f])
-          : ['title', 'start', 'end'].filter(f => !pending[f]);
-        if (stillMissing.length) {
-          pending.missingFields = stillMissing;
+          const currentMissingField = missingFields[0];
+          let responseValue = userMessage.trim();
           
-          // Use createFollowUpPrompt for a more conversational follow-up
-          const missingInfo = stillMissing[0]; // Get the first missing field
-          const prompt = createFollowUpPrompt(missingInfo, pending);
+          // Process the response based on the field type for better parsing
+          if (currentMissingField === 'start') {
+            // If they provided just a time without a date, add today's date
+            if (/^\d{1,2}(:\d{2})?\s*(am|pm|AM|PM)$/.test(responseValue)) {
+              const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+              const timeMatch = responseValue.match(/(\d{1,2})(:\d{2})?\s*(am|pm|AM|PM)/);
+              
+              if (timeMatch) {
+                let hours = parseInt(timeMatch[1]);
+                const minutes = timeMatch[2] ? parseInt(timeMatch[2].substring(1)) : 0;
+                const period = timeMatch[3].toLowerCase();
+                
+                // Convert to 24-hour format
+                if (period === 'pm' && hours < 12) hours += 12;
+                if (period === 'am' && hours === 12) hours = 0;
+                
+                // Format as ISO string
+                const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+                responseValue = `${today}T${formattedTime}`;
+              }
+            }
+            // If they provided just a date without time, add a default time
+            else if (/^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(responseValue) || 
+                    /^\d{4}-\d{2}-\d{2}$/.test(responseValue)) {
+              // Try to parse the date
+              let parsedDate;
+              if (/^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(responseValue)) {
+                // MM/DD/YYYY or MM/DD/YY or MM/DD format
+                const parts = responseValue.split('/');
+                const month = parseInt(parts[0]) - 1; // JS months are 0-indexed
+                const day = parseInt(parts[1]);
+                const year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
+                
+                // Adjust two-digit years
+                const adjustedYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
+                
+                parsedDate = new Date(adjustedYear, month, day);
+                const isoDate = parsedDate.toISOString().split('T')[0];
+                
+                // Add a default time (9 AM)
+                responseValue = `${isoDate}T09:00:00`;
+              } else {
+                // YYYY-MM-DD format
+                responseValue = `${responseValue}T09:00:00`;
+              }
+            }
+          } else if (currentMissingField === 'end') {
+            // Handle different duration formats
+            const durationMatch = responseValue.match(/(\d+)\s*(hour|hr|minute|min|m|h)/i);
+            if (durationMatch && pending.start) {
+              const amount = parseInt(durationMatch[1]);
+              const unit = durationMatch[2].toLowerCase();
+              
+              // Calculate end time based on duration
+              const startTime = new Date(pending.start);
+              if (unit.startsWith('h')) {
+                startTime.setHours(startTime.getHours() + amount);
+              } else {
+                startTime.setMinutes(startTime.getMinutes() + amount);
+              }
+              
+              responseValue = startTime.toISOString();
+            }
+          }
           
-          // Get a conversational prompt for the missing information
-          const completion = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: prompt }],
-          });
+          // Save the processed value
+          pending[currentMissingField] = responseValue;
           
-          // Use the AI-generated follow-up question
-          const replyMessage = completion.choices[0].message.content;
+          // Remove the field we just processed from missingFields
+          pending.missingFields = pending.missingFields.slice(1);
           
-          chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
-          return res.status(200).json({ message: replyMessage });
-        } else {
+          // Check if we still have more fields to collect
+          if (pending.missingFields.length > 0) {
+            const nextField = pending.missingFields[0];
+            
+            // Create a specific follow-up question for the next field
+            let followUpQuestion;
+            switch (nextField) {
+              case 'title':
+                followUpQuestion = "What would you like to name this event?";
+                break;
+              case 'start':
+                followUpQuestion = "When should this event start? (Please provide a specific date and time)";
+                break;
+              case 'end':
+                followUpQuestion = "How long will this event last? (You can specify an end time or duration)";
+                break;
+              case 'location':
+                followUpQuestion = "Where will this event take place?";
+                break;
+              default:
+                followUpQuestion = `Please provide the ${nextField} for this event.`;
+            }
+            
+            chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
+            chatHistory.push({ id: (Date.now() + 1).toString(), message: followUpQuestion, role: 'assistant', timestamp: new Date() });
+            return res.status(200).json({ message: followUpQuestion });
+          } else {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
@@ -220,7 +295,7 @@ What would you like to do today? You can ask me to:
 
 ❌ **Delete:** "Cancel my dentist appointment" 
 
-📋 **View:** "Show events this week"`;
+📋 **View:** "Show my calendar for this week"`;
       
       chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
       chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -349,7 +424,7 @@ What would you like to do today? You can ask me to:
         }
         break;
       }
-      case 'update': {
+case 'update': {
         // grab existing list of events
         const listRes = await axios.get(
           'http://localhost:3000/api/calendar/list-events',
@@ -384,45 +459,14 @@ What would you like to do today? You can ask me to:
           break;
         }
 
-        // Get the existing start and end times
-        const existingStart = existingEvent.start.dateTime || existingEvent.start.date;
-        const existingEnd = existingEvent.end.dateTime || existingEvent.end.date;
-        
-        let finalStart = existingStart;
-        let finalEnd = existingEnd;
-        
-        // Only update times if provided in the update
-        if (start) {
-          finalStart = start;
-          
-          // If only start time was updated but not end time, adjust end time to maintain duration
-          if (!end) {
-            const existingStartDate = new Date(existingStart);
-            const existingEndDate = new Date(existingEnd);
-            const duration = existingEndDate - existingStartDate; // duration in ms
-            
-            const newStartDate = new Date(start);
-            const newEndDate = new Date(newStartDate.getTime() + duration);
-            finalEnd = newEndDate.toISOString();
-          }
-        }
-        
-        if (end) {
-          finalEnd = end;
-        }
-        
-        // Format for display
-        const startDate = new Date(finalStart);
-        const endDate = new Date(finalEnd);
-
         // Merge existing event details with updates
         const updateData = {
           eventId,
           title: title || existingEvent.summary,
-          location: location || existingEvent.location || '',
-          description: description || existingEvent.description || '',
-          start: finalStart,
-          end: finalEnd
+          location: location || existingEvent.location,
+          description: description || existingEvent.description,
+          start: start || existingEvent.start.dateTime || existingEvent.start.date,
+          end: end || existingEvent.end.dateTime || existingEvent.end.date
         };
 
         // Ask for confirmation before updating
@@ -436,6 +480,8 @@ What would you like to do today? You can ask me to:
         };
         
         // Format times for better readability
+        const startDate = new Date(updateData.start);
+        const endDate = new Date(updateData.end);
         const formattedStart = startDate.toLocaleString('en-US', {
           weekday: 'short', month: 'short', day: 'numeric', 
           hour: 'numeric', minute: 'numeric'
@@ -568,35 +614,67 @@ What would you like to do today? You can ask me to:
             return false;
           };
           
-          // For create actions, require all fields; for update actions, be more lenient
-          const action = partial.eventId ? 'update' : 'create';
-          const fieldsToCheck = action === 'update' 
-            ? [] // For updates, we'll use the existing event data for missing fields
-            : requiredFields;
-            
-          const missingFields = fieldsToCheck.filter(f => !hasField(partial, f, action));
+          // Use AI-detected missing fields if available
+          let missingFields = [];
+          if (partial.missingDetails && Array.isArray(partial.missingDetails) && partial.missingDetails.length > 0) {
+            missingFields = [...partial.missingDetails];
+          } else {
+            // Fall back to our own detection logic
+            const action = partial.eventId ? 'update' : 'create';
+            const fieldsToCheck = action === 'update' 
+              ? [] // For updates, we'll use the existing event data for missing fields
+              : requiredFields;
+              
+            missingFields = fieldsToCheck.filter(f => !hasField(partial, f, action));
+          }
+          
           if (missingFields.length) {
+            // Ask for missing details one at a time
+            const firstMissingField = missingFields[0];
+            const remainingMissingFields = missingFields.slice(1);
+            
+            // Create specific follow-up questions based on the missing field
+            let followUpQuestion = '';
+            switch (firstMissingField) {
+              case 'title':
+                followUpQuestion = "What would you like to name this event?";
+                break;
+              case 'start':
+                // Check if we're missing date or time or both
+                if (partial.start && partial.start.includes('T')) {
+                  // If we have a formatted ISO string, we're likely not missing start
+                  // This shouldn't happen, but just in case
+                  followUpQuestion = "What date and time should this event start?";
+                } else if (partial.title && partial.title.includes(" on ")) {
+                  // We might have a date but not time
+                  followUpQuestion = "What time should this event start?";
+                } else if (partial.title && partial.title.includes(" at ")) {
+                  // We might have time but not date
+                  followUpQuestion = "What date should this event be scheduled for?";
+                } else {
+                  // We're missing both date and time
+                  followUpQuestion = "When should this event start? (Please provide a specific date and time)";
+                }
+                break;
+              case 'end':
+                followUpQuestion = "How long will this event last? (You can specify an end time or duration)";
+                break;
+              case 'location':
+                followUpQuestion = "Where will this event take place?";
+                break;
+              default:
+                followUpQuestion = `Please provide the ${firstMissingField} for this event.`;
+            }
+            
             sessionState[sessionId] = {
               pendingEvent: {
                 ...partial,
-                action: action,
-                missingFields,
+                action: partial.eventId ? 'update' : 'create',
+                missingFields: [firstMissingField, ...remainingMissingFields],
               }
             };
             
-            // Use createFollowUpPrompt for a better, more conversational follow-up
-            const missingInfo = missingFields[0]; // Get the first missing field
-            const prompt = createFollowUpPrompt(missingInfo, partial);
-            
-            // Get a conversational prompt for the missing information
-            const completion = await openai.chat.completions.create({
-              model: 'gpt-3.5-turbo',
-              messages: [{ role: 'user', content: prompt }],
-            });
-            
-            // Use the AI-generated follow-up question
-            const replyMessage = completion.choices[0].message.content;
-            
+            replyMessage = followUpQuestion;
             chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
             chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
             return res.status(200).json({ message: replyMessage });
@@ -624,6 +702,29 @@ What would you like to do today? You can ask me to:
         }
         
         if (invalidFields.length) {
+          // Create more informative error messages based on what's invalid
+          const fieldsWithIssues = {};
+          for (const field of invalidFields) {
+            if (field === 'start') {
+              if (!parsedEvent.start) {
+                fieldsWithIssues.start = "Could not determine when your event should start. Please specify a date and time.";
+              } else {
+                fieldsWithIssues.start = "The start time format is invalid. Please specify a clear date and time (e.g., 'tomorrow at 3pm').";
+              }
+            }
+            if (field === 'end') {
+              if (!parsedEvent.end) {
+                fieldsWithIssues.end = "Could not determine the end time or duration for your event.";
+              } else {
+                fieldsWithIssues.end = "The end time format is invalid. Please specify an end time or duration (e.g., '1 hour' or 'until 4pm').";
+              }
+            }
+          }
+
+          // Get the first field to ask about
+          const firstField = invalidFields[0];
+          const firstMessage = fieldsWithIssues[firstField];
+
           sessionState[sessionId] = {
             pendingEvent: {
               ...parsedEvent,
@@ -631,22 +732,48 @@ What would you like to do today? You can ask me to:
               missingFields: invalidFields,
             }
           };
-          replyMessage = `⚠️ **Invalid or missing details:** ${invalidFields.map(f => `\`${f}\``).join(', ')}.\n\nPlease provide a valid value for: ${invalidFields.join(', ')}`;
+
+          // Create a specific question for just the first missing field
+          let followUpQuestion;
+          switch (firstField) {
+            case 'start':
+              followUpQuestion = "When should this event start? Please provide a specific date and time.";
+              break;
+            case 'end':
+              if (parsedEvent.start && !isNaN(Date.parse(parsedEvent.start))) {
+                followUpQuestion = "How long will this event last? You can specify an end time or duration (e.g., '1 hour' or 'until 4pm').";
+              } else {
+                followUpQuestion = "When should this event end? Please provide a specific date and time.";
+              }
+              break;
+            default:
+              followUpQuestion = `Please provide a valid value for: ${firstField}`;
+          }
+
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
-          return res.status(200).json({ message: replyMessage });
+          chatHistory.push({ id: (Date.now() + 1).toString(), message: followUpQuestion, role: 'assistant', timestamp: new Date() });
+          return res.status(200).json({ message: followUpQuestion });
         }
 
-        // Custom confirmation message
+        // Custom confirmation message with improved formatting for better clarity
         const eventStart = new Date(parsedEvent.start);
         const eventEnd = new Date(parsedEvent.end);
         const dayOfWeek = eventStart.toLocaleDateString('en-US', { weekday: 'long' });
         const monthDay = eventStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const startTime = eventStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const endTime = eventEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        
+        // Calculate duration for better context
+        const durationMs = eventEnd.getTime() - eventStart.getTime();
+        const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+        const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+        const durationText = durationHours > 0 
+          ? `${durationHours} hour${durationHours !== 1 ? 's' : ''}${durationMinutes > 0 ? ` ${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}` : ''}`
+          : `${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}`;
+        
         let confirmMsg = `✅ **Confirm the following event:**\n\n`;
         confirmMsg += `**${parsedEvent.title}** (${dayOfWeek} - ${monthDay})\n`;
-        confirmMsg += `- 🕒 ${startTime} - ${endTime}\n`;
+        confirmMsg += `- 🕒 ${startTime} - ${endTime} (${durationText})\n`;
         
         // Add recurring info to confirmation message if relevant
         if (parsedEvent.recurrence && parsedEvent.recurrence.length > 0) {

@@ -20,27 +20,14 @@ Parse the following message and return a JSON object with these fields:
 - end: string (ISO 8601 format)
 
 INTERPRETATION RULES:
-1. For missing times:
-   - If just "morning" is mentioned: assume 9:00 AM
-   - If just "afternoon" is mentioned: assume 2:00 PM
-   - If just "evening" is mentioned: assume 6:00 PM
-   - If no specific time: assume 9:00 AM for morning events, 2:00 PM otherwise
-
-2. For durations:
-   - Meetings/calls: 30-60 minutes (default: 30 min)
-   - Classes/lectures: 50-90 minutes (default: 75 min)
-   - Lunches/coffees: 60 minutes
-   - Dinners: 90 minutes
-   - Appointments: 60 minutes
-   - Conferences/workshops: full day (9 AM - 5 PM)
    
-3. For relative dates:
+1. For relative dates:
    - "Today" refers to current date
    - "Tomorrow" refers to next day
    - "Next [day]" refers to the next occurrence of that weekday
    - Day names refer to the upcoming occurrence of that day
 
-4. For recurring events mentions:
+2. For recurring events mentions:
    - Check for patterns like "every Monday", "weekly", "daily", etc.
    - For recurring events, include a "recurrence" array field in the response containing RRULE strings (https://tools.ietf.org/html/rfc5545#section-3.8.5)
    - Examples:
@@ -94,6 +81,7 @@ You are an expert calendar assistant tasked with identifying and updating existi
 IMPORTANT CONTEXT:
 - Today is ${today} (${dayOfWeek})
 - The user wants to modify an existing event
+- Current time is ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' })}
 
 USER'S CALENDAR EVENTS:
 ${listText}
@@ -126,7 +114,14 @@ INSTRUCTIONS:
 4. For date/time modifications:
    - Convert all times to ISO 8601 format with timezone
    - Be precise with dates, inferring current month/year for relative references
-   - For partial updates (e.g., just changing the time), preserve the original date
+   - For partial updates (e.g., just changing the time), preserve the original date but change the time component
+   - If only time is mentioned (e.g., "change to 3pm"), keep the same date but update the hours and minutes
+
+TIME CONVERSION RULES:
+- If user says "change to 1pm", interpret this as 13:00:00 on the same day as the original event
+- If user says "move to Friday", keep the same time but change the date to the next Friday
+- If user says "change to tomorrow at 2pm", change both date and time components
+- If only specifying a start time change, adjust end time to maintain the original duration
 
 USER'S MESSAGE: "${userInput}"
 
@@ -200,4 +195,45 @@ Return ONLY a valid JSON object with the eventId field. No explanations or addit
   `;
 }
 
-module.exports = { createPrompt, updatePrompt, deletePrompt };
+function createFollowUpPrompt(missingInfo, partialEventData) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  const now = new Date();
+  const currentHour = now.getHours();
+  const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+  
+  // Convert partial event data to a readable format for context
+  let partialEventContext = '';
+  if (partialEventData) {
+    partialEventContext = `
+Based on what you've told me so far, I have:
+${partialEventData.title ? `- Title: ${partialEventData.title}` : ''}
+${partialEventData.location ? `- Location: ${partialEventData.location}` : ''}
+${partialEventData.start ? `- Start: ${new Date(partialEventData.start).toLocaleString()}` : ''}
+${partialEventData.end ? `- End: ${new Date(partialEventData.end).toLocaleString()}` : ''}
+`;
+  }
+  
+  return `
+You are an expert calendar assistant that helps users schedule events by asking for missing information.
+
+IMPORTANT CONTEXT:
+- Today is ${today} (${dayOfWeek})
+- Current time is approximately ${currentHour}:00
+${partialEventContext}
+
+TASK:
+The user is trying to create a calendar event but hasn't provided all the necessary information.
+${missingInfo === 'date' ? 'They haven\'t specified WHEN the event should occur (which date).' : ''}
+${missingInfo === 'time' ? 'They haven\'t specified WHAT TIME the event should occur.' : ''}
+${missingInfo === 'duration' ? 'They haven\'t specified HOW LONG the event will last.' : ''}
+${missingInfo === 'title' ? 'They haven\'t provided a clear TITLE for the event.' : ''}
+${missingInfo === 'location' ? 'They haven\'t specified WHERE the event will take place.' : ''}
+
+Formulate a natural, conversational question to ask the user for this specific missing information.
+Be friendly but direct, and make your question specific to the event they're trying to create.
+
+Your response should be ONLY the question asking for the missing information. No other text, no JSON.
+`;
+}
+
+module.exports = { createPrompt, updatePrompt, deletePrompt, createFollowUpPrompt };
