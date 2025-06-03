@@ -144,7 +144,7 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
 
     const isoStart = startDate.toISOString();
     const isoEnd = endDate.toISOString();
-
+    
     const event = {
       summary,
       location,
