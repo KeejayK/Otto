@@ -646,7 +646,6 @@ What would you like to do today? You can ask me to:
                 }
               } else {
                 console.error("Invalid start time format provided:", start);
-                
                 // If there's a day of week mention in the message but GPT failed to parse it correctly
                 if (dayOfWeekMatch) {
                   const dayName = getDayFullName(dayOfWeekMatch[0]);
