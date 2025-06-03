@@ -3,6 +3,7 @@
  */
 import { mount } from '@vue/test-utils'
 import HomeView from '@/views/HomeView.vue'
+import LoginView from '@/views/LoginView.vue'
 
 const fs = require('fs');
 const path = require('path');
@@ -72,5 +73,12 @@ describe('HomeView.vue', () => {
     const messages = wrapper.findAll('.chat-panel')
     expect(messages).toHaveLength(1)
     expect(messages[0].text()).toBe('Hello Vue!')
+  })
+})
+
+describe('LoginView.vue', () => {
+  it('matches the snapshot', () => {
+    const wrapper = mount(LoginView)
+    expect(wrapper.html()).toMatchSnapshot()
   })
 })
