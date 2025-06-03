@@ -1,4 +1,3 @@
-<!-- src/views/HomeView.vue -->
 <template>
   <div class="home-container">
     <div class="chat-panel">
@@ -194,7 +193,10 @@
         </div>
       </div>
       
-      <!-- Chat input area -->
+      <!-- Chat input area without action panel -->
+      
+      <!-- Quick Actions Menu removed as requested -->
+      
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
           <input
@@ -212,7 +214,6 @@
       </div>
     </div>
 
-    <!-- If not authenticated, ask them to sign in -->
     <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
       <div class="auth-prompt">
         <h3>Please sign in to access your calendar</h3>
@@ -220,23 +221,7 @@
         <button class="signin-button-large" @click="navigateToLogin">Sign In with Google</button>
       </div>
     </div>
-
-    <!-- If signed in but no calendarAccess yet, show a “Grant Access” button -->
-    <div
-      v-else-if="authStore.isAuthenticated && !authStore.hasCalendarAccess"
-      class="calendar-placeholder"
-    >
-      <div class="auth-prompt">
-        <h3>Grant Calendar Access</h3>
-        <p>Otto needs permission to read your Google Calendar. Please grant access below.</p>
-        <button class="signin-button-large" @click="onGrantCalendarAccess">
-          Grant Google Calendar Access
-        </button>
-      </div>
-    </div>
-
-    <!-- Once calendarAccess is true, embed the calendar iframe -->
-    <div v-else-if="authStore.hasCalendarAccess" class="calendar-wrapper">
+    <div v-else-if="calendarUrl" class="calendar-wrapper">
       <iframe
         ref="calendarIframe"
         :key="iframeKey"
@@ -252,11 +237,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed, watch, watchEffect } from 'vue';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
-import { chatApi, calendarApi } from '@/services/api'; // ← import calendarApi here
+import { chatApi } from '@/services/api'; // Import the existing chatApi
 import { useRouter } from 'vue-router';
 import VueMarkdownIt from 'vue3-markdown-it';
+
+import { watchEffect } from 'vue';
+
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -269,6 +257,7 @@ const isLoading = ref(false);
 // In-chat form state
 const showInChatForm = ref(false);
 const currentAction = ref('');
+const activeFormId = ref(null);
 const formData = ref({
   eventName: '',
   startDate: new Date().toISOString().split('T')[0],
@@ -288,92 +277,18 @@ const formData = ref({
   description: ''
 });
 
-// Optional: If you want to inspect events returned by calendarApi.listEvents()
-const events = ref([]);
-
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
   const profile = authStore.getUserProfile();
   if (!profile?.email) return null;
   const encodedEmail = encodeURIComponent(profile.email);
-  // Adjust ctz (timezone) or mode if you like
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
+
 
 watchEffect(() => {
   console.log('calendarUrl →', calendarUrl.value);
 });
-
-// When the component mounts, if we already have calendarAccess, load events now
-onMounted(() => {
-  console.log('HomeView mounted');
-  chatMessages.value.push({
-    role: 'assistant',
-    content:
-      "Hi there! I'm Otto, your calendar assistant. How can I help you today?",
-  });
-  scrollToBottom();
-
-  if (authStore.hasCalendarAccess) {
-    _loadCalendarEvents();
-  }
-});
-
-// Whenever calendarAccess flips from false→true, fetch events and bump the iframe
-watch(
-  () => authStore.hasCalendarAccess,
-  (newVal) => {
-    if (newVal) {
-      console.log('[HomeView] calendarAccess granted → loading events & reloading iframe');
-      _loadCalendarEvents();
-      iframeKey.value += 1;
-    }
-  }
-);
-
-// Reload iframe if user just signed in (so that calendar picks up the new session)
-watch(
-  () => authStore.isAuthenticated,
-  (isAuthenticated) => {
-    if (isAuthenticated && authStore.hasCalendarAccess) {
-      iframeKey.value += 1;
-    }
-  }
-);
-
-/**
- * Helper: actually call calendarApi.listEvents()
- * so you can see the GET /calendar/v3/… calls in your network tab.
- * (We store results in `events` just so you can inspect them if desired.)
- */
-async function _loadCalendarEvents() {
-  try {
-    const data = await calendarApi.listEvents();
-    console.log('[HomeView] calendarApi.listEvents() →', data);
-    // If your backend returns { items: [...] }, store them; otherwise keep data directly:
-    events.value = data.items || data;
-  } catch (err) {
-    console.error('[HomeView] Error loading calendar events:', err);
-  }
-}
-
-
-// Redirect to login page
-const navigateToLogin = () => {
-  router.push('/login');
-};
-
-// Called when user clicks “Grant Google Calendar Access”
-async function onGrantCalendarAccess() {
-  try {
-    await authStore.requestCalendarAccess();
-    // Once requestCalendarAccess() resolves, authStore.calendarAccess → true,
-    // the watcher above (→ _loadCalendarEvents + iframeKey++) will run.
-  } catch (err) {
-    console.error('[HomeView] Failed to get calendar access:', err);
-  }
-}
-
 
 // Function to check if a message is requesting confirmation
 const isConfirmationMessage = (message) => {
@@ -390,7 +305,7 @@ const handleConfirmation = (isConfirmed) => {
   const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
   const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
   
-  // For deletion confirmations, don't show “yes” in chat
+  // For deletion confirmations, don't show the "yes" in the chat
   if (!(isConfirmed && isDeleteConfirmation)) {
     chatMessages.value.push({
       role: 'user',
@@ -398,16 +313,19 @@ const handleConfirmation = (isConfirmed) => {
     });
   }
   
+  // Direct API call instead of using sendMessage
   isLoading.value = true;
   
   chatApi.sendMessage(messageText)
     .then(response => {
       console.log('Response from chatApi:', response);
+      
       if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
         chatMessages.value.push({
           role: 'assistant',
           content: response.data.message + " Would you like to sign in now?",
         });
+        
         chatMessages.value.push({
           role: 'system',
           content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
@@ -417,6 +335,7 @@ const handleConfirmation = (isConfirmed) => {
           role: 'assistant',
           content: response.data.message,
         });
+        
         if (['create', 'update', 'delete'].includes(response.data.type)) {
           iframeKey.value += 1;
         }
@@ -435,6 +354,11 @@ const handleConfirmation = (isConfirmed) => {
     });
 };
 
+// Redirect to login page
+const navigateToLogin = () => {
+  router.push('/login');
+};
+
 // Send message function
 const sendMessage = async () => {
   if (!userMessage.value.trim() || isLoading.value) return;
@@ -443,23 +367,30 @@ const sendMessage = async () => {
   userMessage.value = '';
   isLoading.value = true;
 
-  chatMessages.value.push({
-    role: 'user',
-    content: messageText,
-  });
+  // Add user message to chat only if we're not handling a form submission
+  // (for forms, we already added the nicely formatted user message)
+  if (!showInChatForm.value) {
+    chatMessages.value.push({
+      role: 'user',
+      content: messageText,
+    });
+  }
 
-  // Scroll immediately after user message
+  // Scroll as soon as user sends a message
   await scrollToBottom();
 
   try {
     const response = await chatApi.sendMessage(messageText);
     console.log('Response from chatApi:', response);
 
+    // Handle authentication requirements
     if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
       chatMessages.value.push({
         role: 'assistant',
         content: response.data.message + " Would you like to sign in now?",
       });
+      
+      // Add sign-in prompt as system message
       chatMessages.value.push({
         role: 'system',
         content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
@@ -470,6 +401,7 @@ const sendMessage = async () => {
         content: response.data.message,
       });
 
+      // once event is pushed, refresh calendar iframe
       if (['create', 'update', 'delete'].includes(response.data.type)) {
         iframeKey.value += 1;
         await nextTick();
@@ -497,23 +429,28 @@ const sendDeleteCommand = async (eventId) => {
     content: 'Delete this event',
   });
   
+  // Scroll down to show the message
   await scrollToBottom();
   
   try {
+    // Send the delete command directly to the API - but don't display the technical command
     const messageText = `Delete event with ID ${eventId}`;
     const response = await chatApi.sendMessage(messageText);
     console.log('Response from chatApi:', response);
     
+    // Add the bot's response to the chat
     chatMessages.value.push({
       role: 'assistant',
       content: response.data.message,
     });
     
+    // Refresh the calendar if event was deleted
     if (response.data.type === 'delete') {
       iframeKey.value += 1;
       await nextTick();
     }
     
+    // Scroll down to show the response
     await scrollToBottom();
   } catch (error) {
     console.error('Error in sendDeleteCommand:', error);
@@ -537,11 +474,17 @@ const weekDays = {
   sunday: 'S'
 };
 
+// Get form title based on current action
+const getFormTitle = () => {
+  return currentAction.value;
+};
+
 // Open in-chat form
 const openInChatForm = (action) => {
   currentAction.value = action;
   showInChatForm.value = true;
   
+  // Add assistant message prompting for the form
   let formPrompt = "";
   if (action === "Add new event") {
     formPrompt = "Please fill out the details for your new event:";
@@ -556,10 +499,11 @@ const openInChatForm = (action) => {
     content: formPrompt
   });
   
+  // Reset form data with defaults for easier entry
   formData.value = {
     eventName: '',
     startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days from now
     startTime: '09:00',
     endTime: '10:00',
     location: '',
@@ -575,7 +519,10 @@ const openInChatForm = (action) => {
     description: ''
   };
   
-  nextTick(scrollToBottom);
+  // Scroll to show the form
+  nextTick(() => {
+    scrollToBottom();
+  });
 };
 
 // Cancel in-chat form
@@ -590,6 +537,7 @@ const cancelInChatForm = () => {
 // Submit form data
 const submitForm = async () => {
   if (!formData.value.eventName) {
+    // Add validation message in chat instead of alert
     chatMessages.value.push({
       role: 'system',
       content: 'Please enter an event name to continue.'
@@ -599,14 +547,16 @@ const submitForm = async () => {
   }
   
   let prompt = '';
-  let userPromptDisplay = '';
+  let userPromptDisplay = ''; // This is what will be shown as user message
   
   if (currentAction.value === 'Add recurring event') {
+    // Build prompt for recurring event
     const selectedDays = Object.entries(formData.value.daysOfWeek)
       .filter(([_, selected]) => selected)
       .map(([day]) => day);
     
     if (selectedDays.length === 0) {
+      // Add validation message in chat
       chatMessages.value.push({
         role: 'system',
         content: 'Please select at least one day of the week.'
@@ -615,6 +565,7 @@ const submitForm = async () => {
       return;
     }
     
+    // Map selected days to RRULE format (MO, TU, WE, etc.)
     const dayMap = {
       monday: 'MO',
       tuesday: 'TU',
@@ -624,33 +575,45 @@ const submitForm = async () => {
       saturday: 'SA',
       sunday: 'SU'
     };
+    
+    // Convert selected days to BYDAY values for RRULE
     const byDayValues = selectedDays.map(day => dayMap[day.toLowerCase()]);
+    
+    // Format the end date in RRULE format (YYYYMMDD)
     const untilDate = formData.value.endDate.replace(/-/g, '');
+    
+    // Create an RRULE string for Google Calendar
     const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${byDayValues.join(',')};UNTIL=${untilDate}T235959Z`;
     
     const daysStr = selectedDays.join(', ');
     prompt = `Add a recurring event called "${formData.value.eventName}" on ${daysStr} from ${formData.value.startTime} to ${formData.value.endTime} starting from ${formData.value.startDate} until ${formData.value.endDate}`;
+    
+    // Simplified display for user message
     userPromptDisplay = `Add recurring event: "${formData.value.eventName}" on ${daysStr}, ${formData.value.startTime}-${formData.value.endTime}`;
     
     if (formData.value.description) {
       prompt += ` with description "${formData.value.description}"`;
     }
-    prompt += ` with recurrence ${rrule}`;
-  }
-  else if (currentAction.value === 'Add new event') {
+  } else if (currentAction.value === 'Add new event') {
+    // Build prompt for single event
     prompt = `Add an event called "${formData.value.eventName}" on ${formData.value.startDate} from ${formData.value.startTime} to ${formData.value.endTime}`;
+    
+    // Simplified display for user message
     userPromptDisplay = `Add event: "${formData.value.eventName}" on ${formData.value.startDate}, ${formData.value.startTime}-${formData.value.endTime}`;
     
     if (formData.value.location) {
       prompt += ` at ${formData.value.location}`;
       userPromptDisplay += ` at ${formData.value.location}`;
     }
+    
     if (formData.value.description) {
       prompt += ` with description "${formData.value.description}"`;
     }
-  }
-  else if (currentAction.value === 'Change current event') {
+  } else if (currentAction.value === 'Change current event') {
+    // For changing events, we need the event name and new details
     prompt = `Change the event "${formData.value.eventName}" to ${formData.value.startDate} from ${formData.value.startTime} to ${formData.value.endTime}`;
+    
+    // Simplified display for user message
     userPromptDisplay = `Change event: "${formData.value.eventName}" to ${formData.value.startDate}, ${formData.value.startTime}-${formData.value.endTime}`;
     
     if (formData.value.location) {
@@ -659,24 +622,68 @@ const submitForm = async () => {
     }
   }
   
+  // Hide the form
   showInChatForm.value = false;
+  
+  // Display the simplified command as user message
   chatMessages.value.push({
     role: 'user',
     content: userPromptDisplay
   });
   
+  // For recurring events, construct proper recurrence rules
+  if (currentAction.value === 'Add recurring event') {
+    try {
+      // Map selected days to RRULE format (MO, TU, WE, etc.)
+      const dayMap = {
+        monday: 'MO',
+        tuesday: 'TU',
+        wednesday: 'WE',
+        thursday: 'TH',
+        friday: 'FR',
+        saturday: 'SA',
+        sunday: 'SU'
+      };
+      
+      const selectedDays = Object.entries(formData.value.daysOfWeek)
+        .filter(([_, selected]) => selected)
+        .map(([day]) => day);
+        
+      // Convert selected days to BYDAY values for RRULE
+      const byDayValues = selectedDays.map(day => dayMap[day.toLowerCase()]);
+      
+      // Format the end date in RRULE format (YYYYMMDD)
+      const untilDate = formData.value.endDate.replace(/-/g, '');
+      
+      // Create the RRULE string for Google Calendar
+      const recurrenceRule = `RRULE:FREQ=WEEKLY;BYDAY=${byDayValues.join(',')};UNTIL=${untilDate}T235959Z`;
+      
+      // Add recurrence information to the prompt
+      prompt += ` with recurrence ${recurrenceRule}`;
+    } catch (e) {
+      console.error('Error processing recurring event:', e);
+    }
+  }
+  
+  // Send the detailed command to the API without showing it in the chat
   const messageText = prompt;
+  userMessage.value = '';
   isLoading.value = true;
 
+  // No need to add the user message to chat again since we already did that with userPromptDisplay
+  
   try {
     const response = await chatApi.sendMessage(messageText);
     console.log('Response from chatApi:', response);
 
+    // Handle authentication requirements
     if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
       chatMessages.value.push({
         role: 'assistant',
         content: response.data.message + " Would you like to sign in now?",
       });
+      
+      // Add sign-in prompt as system message
       chatMessages.value.push({
         role: 'system',
         content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
@@ -687,6 +694,7 @@ const submitForm = async () => {
         content: response.data.message,
       });
 
+      // once event is pushed, refresh calendar iframe
       if (['create', 'update', 'delete'].includes(response.data.type)) {
         iframeKey.value += 1;
         await nextTick();
@@ -707,22 +715,30 @@ const submitForm = async () => {
 // Handle quick action button clicks
 const handleQuickAction = (action) => {
   if (action === 'See events this week') {
+    // Set message and send to API
     chatMessages.value.push({
       role: 'user',
       content: action
     });
     
+    // Now use the direct API sending method
     const messageText = action;
+    userMessage.value = '';
     isLoading.value = true;
     
+    // Call API and handle response
     chatApi.sendMessage(messageText)
       .then((response) => {
         console.log('Response from chatApi:', response);
+        
+        // Handle authentication requirements
         if (response.data.type === 'auth_required' && !authStore.isAuthenticated) {
           chatMessages.value.push({
             role: 'assistant',
             content: response.data.message + " Would you like to sign in now?",
           });
+          
+          // Add sign-in prompt as system message
           chatMessages.value.push({
             role: 'system',
             content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
@@ -753,7 +769,9 @@ const handleQuickAction = (action) => {
       content: action
     });
     
+    // Use the same direct API method as above
     const messageText = action;
+    userMessage.value = '';
     isLoading.value = true;
     
     chatApi.sendMessage(messageText)
@@ -765,6 +783,7 @@ const handleQuickAction = (action) => {
             role: 'assistant',
             content: response.data.message + " Would you like to sign in now?",
           });
+          
           chatMessages.value.push({
             role: 'system',
             content: 'You need to be signed in to use calendar features. Click the Sign In button at the top to continue.',
@@ -774,6 +793,7 @@ const handleQuickAction = (action) => {
             role: 'assistant',
             content: response.data.message,
           });
+          
           if (['create', 'update', 'delete'].includes(response.data.type)) {
             iframeKey.value += 1;
           }
@@ -824,27 +844,51 @@ const clearChatHistory = async () => {
 
 // Handle markdown link clicks for event actions
 const handleMarkdownLinkClick = (event) => {
+  // Check if the click was on a link or its child element (like the icon)
   let target = event.target;
+  // If we clicked on an icon or span inside the link, traverse up to find the link
   while (target && target.tagName !== 'A' && target.parentElement) {
     target = target.parentElement;
   }
   
   if (target && target.tagName === 'A') {
     const href = target.getAttribute('href');
+    
+    // Check if this is a command link
     if (href && href.startsWith('command:')) {
       event.preventDefault();
       const [command, action, eventId] = href.split(':');
       
       if (action === 'edit') {
+        // Open edit form for the event
         openInChatForm('Change current event');
         formData.value.eventName = target.dataset.eventName || '';
         userMessage.value = `Change event with ID ${eventId}`;
       } else if (action === 'delete') {
+        // Send delete command without showing it to the user
         sendDeleteCommand(eventId);
       }
     }
   }
 };
+
+// Watch for auth state changes
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    // Reload the calendar when user authenticates
+    iframeKey.value += 1;
+  }
+});
+
+onMounted(() => {
+  console.log('HomeView mounted');
+  chatMessages.value.push({
+    role: 'assistant',
+    content:
+      "Hi there! I'm Otto, your calendar assistant. How can I help you today?",
+  });
+  scrollToBottom();
+});
 </script>
 
 <style scoped>
@@ -909,7 +953,6 @@ const handleMarkdownLinkClick = (event) => {
 }
 
 /* Form Modal Styles */
-/* (Unchanged from before) */  
 .form-modal-overlay {
   position: fixed;
   top: 0;
@@ -1236,5 +1279,607 @@ textarea:focus {
   border: 1px solid var(--color-gray-200);
 }
 
-/* (Remaining styles unchanged…) */
+.panel-header {
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(90deg, white 0%, var(--color-gray-100) 100%);
+}
+
+.panel-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  background: var(--gradient-primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.5px;
+}
+
+/* Otto logo styling removed */
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clear-chat-button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e53e3e;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.clear-chat-button:hover:not([disabled]) {
+  background-color: #fed7d7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(229, 62, 62, 0.15);
+}
+
+.clear-chat-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.clear-icon {
+  font-size: 1.1rem;
+  display: inline-block;
+}
+
+/* Action panel styles removed */
+
+.chat-history {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-height: calc(100% - 100px); /* Adjusted height since action panel was removed */
+  scroll-behavior: smooth;
+  background: linear-gradient(180deg, white 0%, var(--color-gray-50) 100%);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+
+.chat-history::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-300);
+  border-radius: var(--border-radius-full);
+}
+
+.chat-message {
+  padding: 1rem 1.25rem;
+  border-radius: var(--border-radius-lg);
+  max-width: 85%;
+  word-break: break-word;
+  line-height: 1.5;
+  animation: messageSlideIn 0.3s ease-out;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+.chat-message:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thinking {
+  padding: 0.75rem 1.25rem;
+  box-shadow: none;
+}
+
+.dot-animation {
+  display: inline-block;
+  position: relative;
+  width: 60px;
+  height: 20px;
+}
+
+.dot-animation::before {
+  content: '...';
+  display: inline-block;
+  animation: dotAnimation 1.5s infinite;
+  font-size: 24px;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #0284c7, #0ea5e9);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@keyframes dotAnimation {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100px;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+.user-message {
+  align-self: flex-end;
+  background: var(--gradient-primary);
+  color: white;
+  border-bottom-right-radius: 4px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.user-message::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid var(--color-primary);
+  border-top: 10px solid transparent;
+}
+
+.bot-message {
+  align-self: flex-start;
+  background-color: white;
+  color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-200);
+  border-bottom-left-radius: 4px;
+  font-size: 1rem;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.bot-message::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-right: 10px solid white;
+  border-top: 10px solid transparent;
+}
+
+/* Global rule to ensure ALL elements within bot messages have consistent font size */
+.bot-message * {
+  font-size: 1rem;
+}
+
+.system-message {
+  align-self: center;
+  background: linear-gradient(145deg, var(--color-gray-100) 0%, var(--color-gray-50) 100%);
+  color: var(--color-primary-dark);
+  border: 1px dashed var(--color-primary-light);
+  font-size: 0.925rem;
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--border-radius-md);
+  max-width: 80%;
+}
+
+.in-chat-form {
+  max-width: 95%;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(145deg, white 0%, var(--color-gray-50) 100%);
+  border: 1px solid var(--color-gray-200);
+}
+
+.in-chat-form h4 {
+  margin-top: 0;
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  letter-spacing: -0.25px;
+}
+
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.time-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-input-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-gray-200);
+  background: linear-gradient(180deg, var(--color-gray-50) 0%, white 100%);
+}
+
+.chat-input-wrapper {
+  display: flex;
+  flex: 1;
+  background-color: white;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-full);
+  overflow: hidden;
+  transition: all 0.25s;
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-input-wrapper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  transform: translateY(-2px);
+}
+
+.chat-input {
+  flex: 1;
+  padding: 0.8rem 1.25rem;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  outline: none;
+  color: var(--color-gray-800);
+}
+
+.chat-input::placeholder {
+  color: var(--color-gray-400);
+}
+
+.send-button {
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-full);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  filter: brightness(110%);
+}
+
+.send-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.send-button::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 100%;
+  top: 0;
+  left: -100px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: shimmer 2.5s infinite;
+}
+
+.send-button:hover:not([disabled]) {
+  background: linear-gradient(90deg, #0369a1 0%, #0284c7 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
+}
+
+.send-button:active:not([disabled]) {
+  transform: translateY(0);
+}
+
+.send-button[disabled] {
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+  cursor: not-allowed;
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.25);
+}
+
+.calendar-panel {
+  background-color: white;
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  height: 100%;
+  max-height: calc(100vh - 4rem);
+  border: 1px solid var(--color-gray-200);
+  transition: all 0.3s ease;
+}
+
+.calendar-panel:hover {
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Unified consistent styles for event list */
+.bot-message h2 {
+  margin-top: 0;
+  color: #1e40af;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #1e40af, #0097b2);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  display: inline-block;
+}
+
+.bot-message h3 {
+  color: #334155;
+  font-size: 1.05rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1.2rem;
+  font-weight: 600;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bot-message ul {
+  margin-top: 0.75rem;
+  margin-left: 0;
+  padding-left: 0;
+  list-style-type: none;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.bot-message li {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  line-height: 1.5;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.bot-message li:hover {
+  border-color: #bae6fd;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Make events appear as a single line with consistent font */
+.bot-message li strong {
+  font-weight: 600;
+  color: #0369a1;
+  margin-right: 1.5rem;
+  font-size: 1rem;
+}
+
+/* Button styling for event actions */
+.bot-message a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-left: 0.5rem;
+  font-size: 0.85rem !important;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.bot-message a:hover {
+  background-color: #f8fafc;
+  color: #0284c7;
+  border-color: #bae6fd;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 1024px) {
+  .home-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: calc(100vh - 3.5rem);
+    max-height: calc(100vh - 3.5rem);
+  }
+  
+  .chat-panel, .calendar-wrapper {
+    height: calc(50vh - 1.5rem);
+    max-height: none;
+  }
+  
+  .calendar-placeholder {
+    height: calc(50vh - 1.5rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .home-container {
+    padding: 0;
+    gap: 0.5rem;
+  }
+  
+  .chat-message {
+    max-width: 90%;
+    padding: 0.6rem 0.8rem;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .chat-input-container {
+    padding: 0.75rem 1rem;
+  }
+  
+  .send-button {
+    padding: 0.75rem 1.2rem;
+  }
+  
+  .auth-prompt {
+    padding: 1.5rem;
+  }
+}
+
+/* Compact Recurring Event Form Styles */
+.compact-form {
+  width: 95%;
+  padding: 1rem 1.15rem;
+}
+
+.compact-form h4 {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+
+.form-group.compact {
+  margin-bottom: 0.75rem;
+}
+
+.form-group.compact label {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.days-time-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-group.days-group {
+  flex: 1.5;
+}
+
+.form-group.time-group {
+  flex: 1;
+}
+
+.days-selector.compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 0.25rem;
+}
+
+.day-checkbox.compact {
+  padding: 4px 6px;
+  border-radius: 12px;
+  margin-right: 2px;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+}
+
+.time-input-group.compact {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.time-separator {
+  font-size: 0.85rem;
+  color: #64748b;
+  padding: 0 2px;
+}
+
+.time-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.date-range.compact {
+  margin-bottom: 0.75rem;
+}
+
+.date-from-to {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.date-from-to > div {
+  flex: 1;
+}
+
+.date-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.form-actions.compact {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 </style>
