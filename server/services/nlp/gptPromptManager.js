@@ -136,7 +136,21 @@ INSTRUCTIONS:
 TIME CONVERSION RULES:
 - If user says "change to 1pm", interpret this as 13:00:00 (1:00 PM) on the same day as the original event
 - If user says "change to 5pm", interpret this as 17:00:00 (5:00 PM) on the same day as the original event
-- If user says "move to Friday", keep the same time but change the date to the next Friday
+
+DAY OF WEEK CONVERSION RULES:
+- Today is ${timeContext.date} (${timeContext.dayOfWeek})
+- If user says "move to Tuesday" or "change to Tuesday", find the NEXT Tuesday from today (${timeContext.date})
+- If that day is today, and they say "move to [today's day]", keep the same date as the event's original date
+- If the target day of week is earlier than today's day of week, the next occurrence is in the next week
+- Always preserve the original event's time when only changing the day of week
+
+IMPORTANT FOR DAY OF WEEK CHANGES:
+- If the user ONLY mentions changing to a day of week (like "change to Monday" or "move to Wednesday"),
+  you should return an EMPTY string for "start" and "end" fields and let the backend handle the actual date calculation
+- This is different from other updates where you would include specific values
+- If they specify both a day AND time (like "move to Monday at 3pm"), then include the full date in ISO format
+
+OTHER RULES:
 - If user says "change to tomorrow at 2pm", change both date and time components
 - If only specifying a start time change, adjust end time to maintain the original duration
 - Always convert time exactly as specified - if user says 5pm, use 17:00:00, not any other time
@@ -153,14 +167,23 @@ EXAMPLES:
     "start": "5pm",
     "end": ""
   }
-- If user says "change my meeting to 1pm":
+- If user says "move my meeting to Tuesday" or "change to Tuesday":
   {
     "eventId": "abc123",
     "title": "",
     "location": "",
     "description": "",
-    "start": "1pm", 
-    "end": ""
+    "start": "",  # IMPORTANT: Leave empty for day-of-week only changes 
+    "end": ""     # The backend will calculate the correct date
+  }
+- If user says "change test to Tuesday at 3pm":
+  {
+    "eventId": "abc123",
+    "title": "",
+    "location": "",
+    "description": "",
+    "start": "2025-06-03T15:00:00-07:00",  # Next Tuesday with specified time
+    "end": ""  # End time will be adjusted in code to maintain original duration
   }
 - If user says "update my meeting title to Team Standup":
   {
@@ -171,7 +194,7 @@ EXAMPLES:
     "start": "",
     "end": ""
   }
-- If user wants to change both time and date:
+- If user wants to change both time and date explicitly:
   {
     "eventId": "abc123",
     "title": "",

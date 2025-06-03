@@ -4,6 +4,17 @@ const moment = require('moment-timezone');
 // Default timezone
 const DEFAULT_TIMEZONE = 'America/Los_Angeles';
 
+// Days of week mapping
+const DAYS_OF_WEEK = {
+  'sunday': 0,
+  'monday': 1,
+  'tuesday': 2,
+  'wednesday': 3,
+  'thursday': 4,
+  'friday': 5,
+  'saturday': 6
+};
+
 /**
  * Formats a date for consistent display
  * @param {Date|string} date - Date object or ISO string 
@@ -89,9 +100,39 @@ function toISOString(date) {
   return date.toISOString();
 }
 
+/**
+ * Get the next occurrence of a specific day of week from the reference date
+ * @param {string} dayOfWeek - Day of week name (e.g., 'monday', 'tuesday')
+ * @param {Date|string} referenceDate - Base date to calculate from, defaults to today
+ * @returns {Date} - Date object for the next occurrence of the specified day
+ */
+function getNextDayOfWeek(dayOfWeek, referenceDate = new Date()) {
+  const refDate = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
+  const targetDayIdx = DAYS_OF_WEEK[dayOfWeek.toLowerCase()];
+  
+  if (targetDayIdx === undefined) {
+    console.error(`Invalid day of week: ${dayOfWeek}`);
+    return null;
+  }
+  
+  const currentDayIdx = refDate.getDay();
+  let daysToAdd = targetDayIdx - currentDayIdx;
+  
+  // If the target day is earlier in the week than today, or it's the same day
+  // but we want the next occurrence, we need to add days to get to next week
+  if (daysToAdd <= 0) {
+    daysToAdd += 7;
+  }
+  
+  const resultDate = new Date(refDate);
+  resultDate.setDate(refDate.getDate() + daysToAdd);
+  return resultDate;
+}
+
 module.exports = {
   formatDate,
   parseTimeAndApplyToDate,
   toISOString,
-  DEFAULT_TIMEZONE
+  DEFAULT_TIMEZONE,
+  getNextDayOfWeek
 };

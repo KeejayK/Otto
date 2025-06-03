@@ -489,6 +489,13 @@ What would you like to do today? You can ask me to:
           }
           
           console.log("Parsed JSON from GPT:", JSON.stringify(parsed));
+          
+          // Debug log for day-of-week changes
+          const dayOfWeekPattern = /\b(mon(day)?|tues?(day)?|wed(nesday)?|thur?s?(day)?|fri(day)?|sat(urday)?|sun(day)?)\b/i;
+          if (dayOfWeekPattern.test(userMessage)) {
+            console.log("Day change detected in message:", userMessage);
+            console.log("GPT response for day change:", parsed);
+          }
         } catch (error) {
           console.error("Error parsing JSON:", error, "Raw output:", gptOutput);
           parsed = {};
@@ -517,19 +524,149 @@ What would you like to do today? You can ask me to:
         console.log("Existing times:", { existingStart, existingEnd });
         console.log("Update times:", { start, end });
         
+        // Check for day of week patterns in the user's message regardless of whether start/end is provided
+        const dayOfWeekPattern = /\b(mon(day)?|tues?(day)?|wed(nesday)?|thur?s?(day)?|fri(day)?|sat(urday)?|sun(day)?)\b/i;
+        const relativeDayPattern = /\b(tomorrow|next\s+week)\b/i;
+        const dayOfWeekMatch = userMessage.match(dayOfWeekPattern);
+        const relativeDayMatch = userMessage.match(relativeDayPattern);
+        
+        // Get full day name from any abbreviation
+        const getDayFullName = (match) => {
+          const day = match.toLowerCase();
+          if (day.startsWith('mon')) return 'monday';
+          if (day.startsWith('tue')) return 'tuesday';
+          if (day.startsWith('wed')) return 'wednesday';
+          if (day.startsWith('thu')) return 'thursday';
+          if (day.startsWith('fri')) return 'friday';
+          if (day.startsWith('sat')) return 'saturday';
+          if (day.startsWith('sun')) return 'sunday';
+          return null;
+        };
+        
+        // Handle day of week changes even if GPT returns empty time fields
+        if ((dayOfWeekMatch || relativeDayMatch) && (!start || start === '')) {
+          // Handle specific day names
+          if (dayOfWeekMatch) {
+            const dayName = getDayFullName(dayOfWeekMatch[0]);
+            
+            if (dayName) {
+              // Set the date to the next occurrence of the specified day
+              const { getNextDayOfWeek } = require('../services/nlp/timeHelper');
+              const targetDate = getNextDayOfWeek(dayName);
+              
+              if (targetDate) {
+                // Keep the original event time on the new day
+                const originalTime = new Date(existingStart);
+                targetDate.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                
+                finalStart = targetDate.toISOString();
+                console.log(`Applied day change to next ${dayName} from message:`, finalStart);
+              }
+            }
+          } 
+          // Handle relative days like "tomorrow" or "next week"
+          else if (relativeDayMatch) {
+            const relativeDay = relativeDayMatch[1].toLowerCase();
+            const originalTime = new Date(existingStart);
+            let targetDate = new Date(originalTime);
+            
+            if (relativeDay === 'tomorrow') {
+              targetDate.setDate(targetDate.getDate() + 1);
+            } else if (relativeDay.includes('next week')) {
+              targetDate.setDate(targetDate.getDate() + 7);
+            }
+            
+            finalStart = targetDate.toISOString();
+            console.log(`Applied relative day change to ${relativeDay}:`, finalStart);
+          }
+          
+          // Adjust end time to maintain duration for any day change
+          if (finalStart !== existingStart) {
+            const existingStartTime = new Date(existingStart).getTime();
+            const existingEndTime = new Date(existingEnd).getTime();
+            const duration = existingEndTime - existingStartTime;
+            
+            const newStartDate = new Date(finalStart);
+            const newEndDate = new Date(newStartDate.getTime() + duration);
+            finalEnd = newEndDate.toISOString();
+            console.log("Adjusted end time to maintain duration for day change:", finalEnd);
+          }
+        }
+        
         // Only update times if provided in the update
         if (start) {
           try {
+            // Check for day of week patterns in the user's message
+            const dayOfWeekMatch = userMessage.match(dayOfWeekPattern);
+            
+            // Get full day name from any abbreviation
+            const getDayFullName = (match) => {
+              const day = match.toLowerCase();
+              if (day.startsWith('mon')) return 'monday';
+              if (day.startsWith('tue')) return 'tuesday';
+              if (day.startsWith('wed')) return 'wednesday';
+              if (day.startsWith('thu')) return 'thursday';
+              if (day.startsWith('fri')) return 'friday';
+              if (day.startsWith('sat')) return 'saturday';
+              if (day.startsWith('sun')) return 'sunday';
+              return null;
+            };
+            
             // Check if the start time appears to be a full ISO string or just a time reference
             const startContainsTime = start.includes('T') || start.includes(':');
-            if (startContainsTime && start.includes('T')) {
-              // This is a full date+time specification with a T separator
+            
+            // Check if start date string has a date component we should validate for day of week correctness
+            // This is needed because the GPT might generate a date for the wrong day of the week
+            if (startContainsTime && start.includes('T') && dayOfWeekMatch) {
+              const dayName = getDayFullName(dayOfWeekMatch[0]);
+              const requestedDay = dayName ? dayName.toLowerCase() : null;
+              
+              // Try to parse the date
               const startDate = new Date(start);
               if (!isNaN(startDate.getTime())) {
-                finalStart = startDate.toISOString();
-                console.log("Updated start time from full date:", finalStart);
+                // Check if the date's day of week matches the requested day of week
+                const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const dateDay = dayNames[startDate.getDay()];
+                
+                if (requestedDay && dateDay !== requestedDay) {
+                  console.log(`Day of week mismatch: Requested ${requestedDay} but date is ${dateDay}. Correcting...`);
+                  
+                  // Get the correct date for the requested day of week
+                  const { getNextDayOfWeek } = require('../services/nlp/timeHelper');
+                  const correctedDate = getNextDayOfWeek(requestedDay);
+                  
+                  // Keep the time part from the originally parsed date
+                  correctedDate.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
+                  
+                  finalStart = correctedDate.toISOString();
+                  console.log(`Corrected start date to ${requestedDay}:`, finalStart);
+                } else {
+                  // Date is valid and day of week is correct
+                  finalStart = startDate.toISOString();
+                  console.log("Updated start time from full date:", finalStart);
+                }
               } else {
                 console.error("Invalid start time format provided:", start);
+                
+                // If there's a day of week mention in the message but GPT failed to parse it correctly
+                if (dayOfWeekMatch) {
+                  const dayName = getDayFullName(dayOfWeekMatch[0]);
+                  
+                  if (dayName) {
+                    // Set the date to the next occurrence of the specified day
+                    const { getNextDayOfWeek } = require('../services/nlp/timeHelper');
+                    const targetDate = getNextDayOfWeek(dayName);
+                    
+                    if (targetDate) {
+                      // Keep the original event time on the new day
+                      const originalTime = new Date(existingStart);
+                      targetDate.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                      
+                      finalStart = targetDate.toISOString();
+                      console.log(`Corrected start date to next ${dayName}:`, finalStart);
+                    }
+                  }
+                }
               }
             } else {
               // This might be a simple time like "5pm" or "17:00" - use the existing date but update time
@@ -559,7 +696,7 @@ What would you like to do today? You can ask me to:
             }
             
             // If only start time was updated but not end time, adjust end time to maintain duration
-            if (!end) {
+            if (!end || finalStart !== existingStart) {
               const existingStartDate = new Date(existingStart);
               const existingEndDate = new Date(existingEnd);
               const duration = existingEndDate - existingStartDate; // duration in ms
@@ -583,6 +720,20 @@ What would you like to do today? You can ask me to:
               if (!isNaN(endDate.getTime())) {
                 finalEnd = endDate.toISOString();
                 console.log("Updated end time from full date:", finalEnd);
+              } else {
+                console.error("Invalid end time format provided:", end);
+                
+                // If we've already corrected the start time based on day of week, adjust end time to maintain duration
+                if (finalStart !== existingStart) {
+                  const existingStartTime = new Date(existingStart).getTime();
+                  const existingEndTime = new Date(existingEnd).getTime();
+                  const duration = existingEndTime - existingStartTime;
+                  
+                  const newStartDate = new Date(finalStart);
+                  const newEndDate = new Date(newStartDate.getTime() + duration);
+                  finalEnd = newEndDate.toISOString();
+                  console.log("Adjusted end time to maintain duration after day change:", finalEnd);
+                }
               }
             } else {
               // Handle time-only specifications for end time
