@@ -243,6 +243,8 @@ import { chatApi } from '@/services/api'; // Import the existing chatApi
 import { useRouter } from 'vue-router';
 import VueMarkdownIt from 'vue3-markdown-it';
 
+import { watchEffect } from 'vue';
+
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -283,6 +285,10 @@ const calendarUrl = computed(() => {
   const encodedEmail = encodeURIComponent(profile.email);
   
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
+});
+
+watchEffect(() => {
+  console.log('calendarUrl →', calendarUrl.value);
 });
 
 // Function to check if a message is requesting confirmation
