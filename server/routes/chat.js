@@ -91,7 +91,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                       const ampm = match[3] ? match[3].toLowerCase() : null;
                       
                       // Adjust hours for AM/PM
-                      if (ampm === 'pm' && hours < 12) {
+                      if ((ampm === 'pm' || (!ampm && hours < 12)) && hours < 12) {
                         hours += 12;
                       } else if (ampm === 'am' && hours === 12) {
                         hours = 0;
@@ -133,7 +133,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                     const ampm = match[3] ? match[3].toLowerCase() : null;
                     
                     // Adjust hours for AM/PM
-                    if (ampm === 'pm' && hours < 12) {
+                    if ((ampm === 'pm' || (!ampm && hours < 12)) && hours < 12) {
                       hours += 12;
                     } else if (ampm === 'am' && hours === 12) {
                       hours = 0;
@@ -156,13 +156,22 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                 }
               }
               
+              // Convert times to local timezone for better accuracy
+              const startDate = new Date(startISOString);
+              const endDate = new Date(endISOString);
+              
+              // Ensure we have valid times
+              if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                throw new Error('Invalid date format in update payload');
+              }
+
               console.log("Final update payload:", {
                 eventId: pending.eventId,
                 summary: pending.title,
                 location: pending.location,
                 description: pending.description,
-                start: startISOString,
-                end: endISOString,
+                start: startDate.toISOString(),
+                end: endDate.toISOString(),
               });
               
               const updateRes = await axios.put(
@@ -275,11 +284,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\n`;
           } else {
-            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\n`;
           }
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -501,6 +510,88 @@ What would you like to do today? You can ask me to:
         }
         const { eventId, title, location, description, start, end } = parsed;
 
+        // If no explicit time was extracted by GPT, try to extract it from the user message
+        let extractedStart = start;
+        let extractedEnd = end;          if ((!extractedStart || extractedStart === '') && userMessage) {
+          // Look for patterns like "to 5:30" or "to 5:30pm" or just "5pm" in the user message
+          // This pattern will look for:
+          // 1. Times with optional prepositions (to|at|for)
+          // 2. Times in 12-hour format with AM/PM
+          // 3. Times in 24-hour format
+          const timeExtractionPattern = /\b(?:(?:to|at|for|@)\s+)?(\d{1,2})(?:[:.](\d{1,2}))?\s*(am|pm|AM|PM)?\b|\b(\d{2})[:.](\d{2})\b/i;
+          const timeMatch = userMessage.match(timeExtractionPattern);
+          
+          // Verify this isn't part of a date pattern (e.g., "2023-05-30")
+          if (timeMatch && !userMessage.slice(Math.max(0, timeMatch.index - 1), timeMatch.index).match(/[-\/]/) && !userMessage.slice(timeMatch.index + timeMatch[0].length, timeMatch.index + timeMatch[0].length + 1).match(/[-\/]/)) {
+            extractedStart = timeMatch[0].replace(/^\b(?:to|at|for)\s+/, '');
+            console.log("Extracted time from user message:", extractedStart);
+          }
+        }
+
+        // Also try to extract an end time if needed
+        if ((!extractedEnd || extractedEnd === '') && userMessage) {
+          // First split the message into before/after the found start time to look for end time
+          let searchText = userMessage;
+          if (extractedStart) {
+            // Use regex to find the exact match position to avoid partial matches
+            const startIndex = userMessage.indexOf(extractedStart);
+            searchText = userMessage.substring(startIndex + extractedStart.length);
+          }
+
+          // Look for patterns like "until 6:30" or "to 6:30pm" or just "6pm" in the remaining text
+          // This pattern handles:
+          // 1. Times with end-specific prepositions (until|to|ends at|till)
+          // 2. Times in 12-hour format with AM/PM
+          // 3. Times in 24-hour format
+          const timeExtractionPattern = /\b(?:(?:until|to|ends?(?:\s+at)?|till?)\s+)?(\d{1,2})(?:[:.](\d{1,2}))?\s*(am|pm|AM|PM)?\b|\b(\d{2})[:.](\d{2})\b/i;
+          const timeMatch = searchText.match(timeExtractionPattern);
+          
+          // Verify this isn't part of a date pattern, it's different from the start time,
+          // and ensure it's a valid time value
+          if (timeMatch) {
+            let isValidEndTime = true;
+            
+            // Don't use the same time value as start time
+            if (timeMatch[0] === extractedStart) {
+                isValidEndTime = false;
+            }
+            
+            // Don't use time if it's part of a date
+            if (searchText.slice(Math.max(0, timeMatch.index - 1), timeMatch.index).match(/[-\/]/) ||
+                searchText.slice(timeMatch.index + timeMatch[0].length, timeMatch.index + timeMatch[0].length + 1).match(/[-\/]/)) {
+                isValidEndTime = false;
+            }
+            
+            // Parse the time to validate it
+            if (isValidEndTime) {
+                try {
+                    // Handle both 24-hour and 12-hour formats
+                    let hours, minutes;
+                    if (timeMatch[4] && timeMatch[5]) {
+                        // 24-hour format
+                        hours = parseInt(timeMatch[4], 10);
+                        minutes = parseInt(timeMatch[5], 10);
+                    } else {
+                        hours = parseInt(timeMatch[1], 10);
+                        minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+                        const ampm = timeMatch[3] ? timeMatch[3].toLowerCase() : null;
+                        if ((ampm === 'pm' || (!ampm && hours < 12)) && hours < 12) hours += 12;
+                        if (ampm === 'am' && hours === 12) hours = 0;
+                    }
+                    
+                    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+                        extractedEnd = timeMatch[0].replace(/^\b(?:until|to|ends?(?:\s+at)?|till?)\s+/, '');
+                        console.log("Extracted end time from user message:", extractedEnd);
+                    } else {
+                        console.log("Invalid time values found:", { hours, minutes });
+                    }
+                } catch (e) {
+                    console.error("Error parsing time:", e);
+                }
+            }
+          }
+        }
+
         if (!eventId || eventId === "None") {
           replyMessage = "❗ **Event not found.** Please specify which event you want to update.";
           break;
@@ -521,7 +612,11 @@ What would you like to do today? You can ask me to:
         let finalEnd = existingEnd;
         
         console.log("Existing times:", { existingStart, existingEnd });
-        console.log("Update times:", { start, end });
+        console.log("Update times:", { start: extractedStart, end: extractedEnd });
+        
+        // Use the extracted time from user message if available and GPT didn't provide it
+        const startToUse = (extractedStart && start === '') ? extractedStart : start;
+        const endToUse = (extractedEnd && end === '') ? extractedEnd : end;
         
         // Check for day of week patterns in the user's message regardless of whether start/end is provided
         const dayOfWeekPattern = /\b(mon(day)?|tues?(day)?|wed(nesday)?|thur?s?(day)?|fri(day)?|sat(urday)?|sun(day)?)\b/i;
@@ -543,7 +638,7 @@ What would you like to do today? You can ask me to:
         };
         
         // Handle day of week changes even if GPT returns empty time fields
-        if ((dayOfWeekMatch || relativeDayMatch) && (!start || start === '')) {
+        if ((dayOfWeekMatch || relativeDayMatch) && (!startToUse || startToUse === '')) {
           // Handle specific day names
           if (dayOfWeekMatch) {
             const dayName = getDayFullName(dayOfWeekMatch[0]);
@@ -593,7 +688,7 @@ What would you like to do today? You can ask me to:
         }
         
         // Only update times if provided in the update
-        if (start) {
+        if (startToUse) {
           try {
             // Check for day of week patterns in the user's message
             const dayOfWeekMatch = userMessage.match(dayOfWeekPattern);
@@ -612,16 +707,15 @@ What would you like to do today? You can ask me to:
             };
             
             // Check if the start time appears to be a full ISO string or just a time reference
-            const startContainsTime = start.includes('T') || start.includes(':');
-            
+            const startContainsTime = startToUse.includes('T') || startToUse.includes(':');              
             // Check if start date string has a date component we should validate for day of week correctness
             // This is needed because the GPT might generate a date for the wrong day of the week
-            if (startContainsTime && start.includes('T') && dayOfWeekMatch) {
+            if (startContainsTime && startToUse.includes('T') && dayOfWeekMatch) {
               const dayName = getDayFullName(dayOfWeekMatch[0]);
               const requestedDay = dayName ? dayName.toLowerCase() : null;
               
               // Try to parse the date
-              const startDate = new Date(start);
+              const startDate = new Date(startToUse);
               if (!isNaN(startDate.getTime())) {
                 // Check if the date's day of week matches the requested day of week
                 const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -645,7 +739,7 @@ What would you like to do today? You can ask me to:
                   console.log("Updated start time from full date:", finalStart);
                 }
               } else {
-                console.error("Invalid start time format provided:", start);
+                console.error("Invalid start time format provided:", startToUse);
                 // If there's a day of week mention in the message but GPT failed to parse it correctly
                 if (dayOfWeekMatch) {
                   const dayName = getDayFullName(dayOfWeekMatch[0]);
@@ -667,29 +761,84 @@ What would you like to do today? You can ask me to:
                 }
               }
             } else {
-              // This might be a simple time like "5pm" or "17:00" - use the existing date but update time
+              // This might be a simple time like "5pm" or "17:00" or "5:30" - use the existing date but update time
               const existingStartDate = new Date(existingStart);
-              const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
-              const match = start.match(timePattern);
+              // Updated regex pattern to handle both 12-hour and 24-hour formats
+              const timePattern = /(\d{1,2})(?:[:.](\d{1,2}))?\s*(am|pm|AM|PM)?\b|\b(\d{2})[:.](\d{2})\b/i;
+              
+              // Check if the start string directly contains a time pattern without further parsing
+              let match = startToUse.match(timePattern);
+              
+              // Safety check - if we got a match, validate it's not part of a date
+              if (match && (startToUse.includes('-') || startToUse.includes('/'))) {
+                  const matchStart = startToUse.indexOf(match[0]);
+                  const beforeChar = matchStart > 0 ? startToUse[matchStart - 1] : '';
+                  const afterChar = matchStart + match[0].length < startToUse.length ? startToUse[matchStart + match[0].length] : '';
+                  if (beforeChar === '-' || beforeChar === '/' || afterChar === '-' || afterChar === '/') {
+                      match = null;
+                  }
+              }
+              
+              // If no match found, try to extract time from a sentence like "change meeting to 5:30"
+              if (!match) {
+                const sentenceTimePattern = /\b(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?\b/i;
+                match = startToUse.match(sentenceTimePattern) || userMessage.match(sentenceTimePattern);
+                console.log("Extracted time from sentence:", match ? match[0] : "No match");
+              }
               
               if (match) {
-                let hours = parseInt(match[1], 10);
-                const minutes = match[2] ? parseInt(match[2], 10) : 0;
-                const ampm = match[3] ? match[3].toLowerCase() : null;
+                let hours, minutes;
                 
-                // Adjust hours for AM/PM
-                if (ampm === 'pm' && hours < 12) {
-                  hours += 12;
-                } else if (ampm === 'am' && hours === 12) {
-                  hours = 0;
-                } else if (!ampm && start.includes(':')) {
-                  // If format is "HH:MM" with no AM/PM, assume 24-hour format
-                  // hours is already correct, no adjustment needed
+                // Handle both 24-hour and 12-hour formats
+                if (match[4] && match[5]) {
+                    // 24-hour format match (e.g. "17:30")
+                    hours = parseInt(match[4], 10);
+                    minutes = parseInt(match[5], 10);
+                } else {
+                    // 12-hour format match (e.g. "5:30pm")
+                    hours = parseInt(match[1], 10);
+                    minutes = match[2] ? parseInt(match[2], 10) : 0;
+                    const ampm = (match[3] || '').toLowerCase();
+                    
+                    // For PM times, add 12 hours unless it's already in 24-hour format (e.g., 12:00 PM)
+                    // Also assume PM when no AM/PM is specified and hours < 12
+                    console.log(`Time parsing: Raw input=${match[0]}, hours=${hours}, ampm=${ampm}`);
+                    if ((ampm === 'pm' || (!ampm && hours < 12)) && hours < 12) {
+                        console.log(`Converting to PM: ${hours} -> ${hours + 12}`);
+                        hours += 12;
+                    } else if (ampm === 'am' && hours === 12) {
+                        // Convert 12 AM to 0 hours
+                        hours = 0;
+                        console.log(`Converting 12AM to 0 hours`);
+                      }
                 }
                 
-                existingStartDate.setHours(hours, minutes, 0, 0);
-                finalStart = existingStartDate.toISOString();
-                console.log("Updated start time from time-only value:", finalStart);
+                // Validate parsed time
+                if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+                  console.error("Invalid time values:", { hours, minutes });
+                  throw new Error('Invalid time format');
+                }
+                
+                console.log(`Parsed time: ${hours}:${minutes}`);
+                
+                // Verify we have valid date/time values before applying
+                if (typeof hours !== 'number' || hours < 0 || hours > 23 || 
+                    typeof minutes !== 'number' || minutes < 0 || minutes > 59) {
+                  console.error("Invalid time values:", { hours, minutes });
+                  throw new Error('Invalid time format');
+                }
+                
+                try {
+                  existingStartDate.setHours(hours, minutes, 0, 0);
+                  finalStart = existingStartDate.toISOString();
+                  if (isNaN(new Date(finalStart).getTime())) {
+                    throw new Error('Invalid date/time result');
+                  }
+                  console.log("Updated start time from time-only value:", finalStart);
+                } catch (err) {
+                  console.error("Failed to set time:", err);
+                  throw new Error('Failed to update time');
+                }
               }
             }
             
@@ -709,54 +858,124 @@ What would you like to do today? You can ask me to:
           }
         }
         
-        if (end) {
+        if (endToUse) {
           try {
-            // Similar logic for end time
-            const endContainsTime = end.includes('T') || end.includes(':');
-            if (endContainsTime && end.includes('T')) {
-              const endDate = new Date(end);
-              if (!isNaN(endDate.getTime())) {
-                finalEnd = endDate.toISOString();
-                console.log("Updated end time from full date:", finalEnd);
-              } else {
-                console.error("Invalid end time format provided:", end);
-                
-                // If we've already corrected the start time based on day of week, adjust end time to maintain duration
-                if (finalStart !== existingStart) {
-                  const existingStartTime = new Date(existingStart).getTime();
-                  const existingEndTime = new Date(existingEnd).getTime();
-                  const duration = existingEndTime - existingStartTime;
-                  
-                  const newStartDate = new Date(finalStart);
-                  const newEndDate = new Date(newStartDate.getTime() + duration);
-                  finalEnd = newEndDate.toISOString();
-                  console.log("Adjusted end time to maintain duration after day change:", finalEnd);
-                }
-              }
-            } else {
-              // Handle time-only specifications for end time
-              const existingEndDate = new Date(finalEnd);  // Use already adjusted finalEnd
-              const timePattern = /(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?/;
-              const match = end.match(timePattern);
+            // Handle duration formats first (e.g., "for 1 hour", "30 minutes")
+            const durationPattern = /(?:for\s+)?(\d+)\s*(hour|hr|h|minute|min|m)s?\b/i;
+            const durationMatch = typeof endToUse === 'string' ? endToUse.match(durationPattern) : null;
+            
+            if (durationMatch) {
+              // Calculate end time based on duration from start time
+              const amount = parseInt(durationMatch[1], 10);
+              const unit = durationMatch[2].toLowerCase();
               
-              if (match) {
-                let hours = parseInt(match[1], 10);
-                const minutes = match[2] ? parseInt(match[2], 10) : 0;
-                const ampm = match[3] ? match[3].toLowerCase() : null;
+              const startDate = new Date(finalStart);
+              if (unit.startsWith('h')) {
+                startDate.setHours(startDate.getHours() + amount);
+              } else {
+                startDate.setMinutes(startDate.getMinutes() + amount);
+              }
+              finalEnd = startDate.toISOString();
+              console.log(`Updated end time using duration: ${amount} ${unit}:`, finalEnd);
+            } else {
+              // Handle standard time formats
+              const endContainsTime = endToUse.includes('T') || endToUse.includes(':');
+              if (endContainsTime && endToUse.includes('T')) {
+                const endDate = new Date(endToUse);
+                if (!isNaN(endDate.getTime())) {
+                  finalEnd = endDate.toISOString();
+                  console.log("Updated end time from full date:", finalEnd);
+                } else {
+                  console.error("Invalid end time format provided:", endToUse);
+                  
+                  // If we've already corrected the start time based on day of week, adjust end time to maintain duration
+                  if (finalStart !== existingStart) {
+                    const existingStartTime = new Date(existingStart).getTime();
+                    const existingEndTime = new Date(existingEnd).getTime();
+                    const duration = existingEndTime - existingStartTime;
+                    
+                    const newStartDate = new Date(finalStart);
+                    const newEndDate = new Date(newStartDate.getTime() + duration);
+                    finalEnd = newEndDate.toISOString();
+                    console.log("Adjusted end time to maintain duration after day change:", finalEnd);
+                  }
+                }
+              } else {
+                // Handle time-only specifications for end time
+                const existingEndDate = new Date(finalEnd);  // Use already adjusted finalEnd
+                const timePattern = /(\d{1,2})(?:[:.](\d{1,2}))?\s*(am|pm|AM|PM)?\b|\b(\d{2})[:.](\d{2})\b/i;
                 
-                // Adjust hours for AM/PM
-                if (ampm === 'pm' && hours < 12) {
-                  hours += 12;
-                } else if (ampm === 'am' && hours === 12) {
-                  hours = 0;
-                } else if (!ampm && end.includes(':')) {
-                  // If format is "HH:MM" with no AM/PM, assume 24-hour format
-                  // hours is already correct, no adjustment needed
+                // Check if the end string directly contains a time pattern
+                let match = endToUse.match(timePattern);
+                
+                // If no match found, try to extract time from a sentence like "change meeting to end at 6:30"
+                if (!match) {
+                  const sentenceTimePattern = /\b(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|AM|PM)?\b/i;
+                  match = endToUse.match(sentenceTimePattern) || userMessage.match(sentenceTimePattern);
                 }
                 
-                existingEndDate.setHours(hours, minutes, 0, 0);
-                finalEnd = existingEndDate.toISOString();
-                console.log("Updated end time from time-only value:", finalEnd);
+                if (match) {
+                  // Handle both 24-hour and 12-hour formats
+                  let hours, minutes;
+                  if (match[4] && match[5]) {
+                    // 24-hour format match
+                    hours = parseInt(match[4], 10);
+                    minutes = parseInt(match[5], 10);
+                  } else {
+                    hours = parseInt(match[1], 10);
+                    minutes = match[2] ? parseInt(match[2], 10) : 0;
+                    const ampm = (match[3] || '').toLowerCase();
+                    
+                    // If no AM/PM specified and time is before current start time, assume PM
+                    const startDate = new Date(finalStart);
+                    const startHours = startDate.getHours();
+                    
+                    // Convert to PM if:
+                    // 1. PM is explicitly specified
+                    // 2. No AM/PM specified and hours < start time hours (e.g. start 6PM, end 5:30 -> assume 5:30PM)
+                    // 3. No AM/PM specified and hours < 12 (assume PM for times like 5:30)
+                    if (ampm === 'pm' || 
+                        (!ampm && hours < startHours) || 
+                        (!ampm && hours < 12)) {
+                      hours = hours === 12 ? 12 : hours + 12;
+                    } else if (ampm === 'am' && hours === 12) {
+                      hours = 0;
+                    }
+                  }
+
+                  // Validate hours and minutes
+                  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+                    console.error("Invalid time values:", { hours, minutes });
+                    throw new Error('Invalid time format');
+                  }
+
+                  try {
+                    existingEndDate.setHours(hours, minutes, 0, 0);
+                    finalEnd = existingEndDate.toISOString();
+                    
+                    // Validate that end time is after start time
+                    if (new Date(finalEnd) <= new Date(finalStart)) {
+                      console.log("End time before start time, checking if adjustment needed");
+                      // If the end time is before start time and hours < 12 with no AM/PM specified,
+                      // assume PM was intended and add 12 hours
+                      if (hours < 12 && !match[3]) {
+                        hours += 12;
+                        existingEndDate.setHours(hours, minutes, 0, 0);
+                        finalEnd = existingEndDate.toISOString();
+                      }
+                      
+                      // If still before start time after adjustment, log error
+                      if (new Date(finalEnd) <= new Date(finalStart)) {
+                        console.error("End time still before start time after adjustment");
+                        throw new Error('End time must be after start time');
+                      }
+                    }
+                    console.log("Updated end time from time-only value:", finalEnd);
+                  } catch (err) {
+                    console.error("Error setting end time:", err);
+                    throw err;
+                  }
+                }
               }
             }
           } catch (error) {
@@ -799,7 +1018,7 @@ What would you like to do today? You can ask me to:
         
         console.log("Formatted times for display:", formattedStart, formattedEnd);
         
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -858,7 +1077,7 @@ What would you like to do today? You can ask me to:
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });

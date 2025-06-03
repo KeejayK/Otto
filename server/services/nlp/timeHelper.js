@@ -72,7 +72,7 @@ function parseTimeAndApplyToDate(timeStr, baseDate) {
     const ampm = match[3] ? match[3].toLowerCase() : null;
     
     // Adjust hours for AM/PM
-    if (ampm === 'pm' && hours < 12) {
+    if ((ampm === 'pm' || (!ampm && hours < 12)) && hours < 12) {
       hours += 12;
     } else if (ampm === 'am' && hours === 12) {
       hours = 0;

@@ -275,11 +275,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\n`;
           } else {
-            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\n`;
           }
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -799,7 +799,7 @@ What would you like to do today? You can ask me to:
         
         console.log("Formatted times for display:", formattedStart, formattedEnd);
         
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
