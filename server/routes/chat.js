@@ -15,6 +15,11 @@ const sessionState = {};
 // Chat history storage (in-memory for now)
 let chatHistory = [];
 
+
+const CALENDAR_BASE =
+  process.env.CALENDAR_API_URL?.replace(/\/$/, '') || 'http://localhost:3000/api/calendar';
+
+
 // GET /api/chat/history
 router.get('/history', (req, res) => {
   res.json(chatHistory);
@@ -54,7 +59,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Update event
             try {
               const updateRes = await axios.put(
-                'http://localhost:3000/api/calendar/modify-event',
+                `${CALENDAR_BASE}/modify-event`,
                 {
                   eventId: pending.eventId,
                   summary: pending.title,
@@ -81,7 +86,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Delete event
             try {
               await axios.delete(
-                `http://localhost:3000/api/calendar/delete-event/${pending.eventId}`,
+                `${CALENDAR_BASE}/delete-event/${pending.eventId}`,
                 { headers: { Authorization: authHeader } }
               );
               delete sessionState[sessionId].pendingEvent;
@@ -100,7 +105,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Create event
             try {
               const calendarRes = await axios.post(
-                'http://localhost:3000/api/calendar/add-event',
+                `${CALENDAR_BASE}/add-event`,
                 {
                   summary: pending.title,
                   location: pending.location,
@@ -176,7 +181,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
       case 'list': {
         // List existing events
         const listRes = await axios.get(
-          'http://localhost:3000/api/calendar/list-events',
+          `${CALENDAR_BASE}/list-events`,
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;
@@ -293,7 +298,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 case 'update': {
         // grab existing list of events
         const listRes = await axios.get(
-          'http://localhost:3000/api/calendar/list-events',
+          `${CALENDAR_BASE}/list-events`,
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;
@@ -365,7 +370,7 @@ case 'update': {
       case 'delete': {
         // grab existing list of events
         const listRes = await axios.get(
-          'http://localhost:3000/api/calendar/list-events',
+          `${CALENDAR_BASE}/list-events`,
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;
