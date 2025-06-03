@@ -134,11 +134,14 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
   try {
     const calendar = await initializeGoogleCalendar(uid);
 
+    // Verify the event exists first
+    let existingEvent;
     try {
-      await calendar.events.get({
+      const eventResponse = await calendar.events.get({
         calendarId: 'primary',
         eventId: eventId,
       });
+      existingEvent = eventResponse.data;
     } catch (error) {
       if (error.code === 404) {
         return res.status(404).json({ error: 'Event not found' });
@@ -149,18 +152,28 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
     console.log('Updating event');
 
     // Build the event resource
+    // Log the input received from the client
+    console.log('Update request received with times:', { start, end });
+    
     const startDate = new Date(start);
     const endDate = new Date(end);
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.error('Invalid date format received:', { start, end });
+      return res.status(400).json({ error: 'Invalid date format for start or end time' });
+    }
 
     const isoStart = startDate.toISOString();
     const isoEnd = endDate.toISOString();
 
-    console.log(`${isoStart}, ${isoEnd}`);
+    console.log(`Parsed and converted times: ${isoStart}, ${isoEnd}`);
 
+    // Keep existing fields if not provided in the update
     const event = {
-      summary,
-      location,
-      description,
+      summary: summary || existingEvent.summary,
+      location: location !== undefined ? location : (existingEvent.location || ''),
+      description: description !== undefined ? description : (existingEvent.description || ''),
       start: { dateTime: isoStart, timeZone: 'America/Los_Angeles' },
       end: { dateTime: isoEnd, timeZone: 'America/Los_Angeles' },
     };
@@ -178,7 +191,7 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
     return res.json({ htmlLink: response.data.htmlLink });
   } catch (error) {
     console.error('Error updating event:', error);
-    return res.status(500).json({ error: 'Failed to update calendar event' });
+    return res.status(500).json({ error: 'Failed to update calendar event', details: error.message });
   }
 });
 
