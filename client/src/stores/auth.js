@@ -100,7 +100,9 @@ export const useAuthStore = defineStore('auth', {
     },
 
     initialize() {
+      console.log('[AuthStore] initialize() called');
       onAuthStateChanged(auth, async (user) => {
+        console.log('[AuthStore] onAuthStateChanged →', user); 
         if (user) {
           this.user = user;
           this.idToken = await user.getIdToken();

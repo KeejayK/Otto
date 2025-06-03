@@ -11,7 +11,8 @@ import './style.css';
 const app = createApp(App);
 
 // Use Pinia for state management
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
 
 const authStore = useAuthStore();
 authStore.initialize();
