@@ -32,6 +32,7 @@
     "dotenv": "^16.5.0",
     "firebase": "^11.7.1",
     "firebase-admin": "^13.4.0",
+    "moment-timezone": "^0.6.0",
     "mongoose": "^8.14.1",
     "openai": "^4.98.0",
     "pinia": "^3.0.2",
