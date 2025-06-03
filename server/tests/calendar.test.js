@@ -1,5 +1,5 @@
 const request = require('supertest');
-// const app = require('../app');
+const app = require('../app');
 const { google } = require('googleapis');
 
 // Mock the Google Calendar API
@@ -67,12 +67,13 @@ jest.mock('../middleware/auth', () =>
 );
 
 // Mock Firestore to return user data with Google credentials
-jest.mock('../firebase', () => {
-  const firestore = jest.fn(() => ({
+jest.mock('../firebase', () => ({
+  firestore: jest.fn(() => ({
     collection: jest.fn(() => ({
       doc: jest.fn(() => ({
         get: jest.fn(() =>
           Promise.resolve({
+            exists: true,
             data: () => ({
               google: {
                 accessToken: 'mock-access-token',
@@ -83,13 +84,16 @@ jest.mock('../firebase', () => {
         ),
       })),
     })),
-  }));
-  return { firestore };
-});
+  })),
+}));
 
-describe.skip('Calendar API', () => {
+describe('Calendar API', () => {
   beforeEach(() => {
     jest.clearAllMocks(); // Clear mocks before each test
+  });
+
+  beforeAll(() => {
+    console.log('Running Calendar API tests');
   });
 
   it('should create a new calendar event', async () => {
@@ -105,7 +109,6 @@ describe.skip('Calendar API', () => {
       .post('/api/calendar/add-event')
       .send(eventData);
 
-    console.log('Create Event Response:', response.body);
     expect(response.status).toBe(200);
     expect(response.body.htmlLink).toBe('http://example.com/event');
   });
@@ -124,7 +127,6 @@ describe.skip('Calendar API', () => {
       .put(`/api/calendar/modify-event`)
       .send({ eventId, ...updatedEventData });
 
-    console.log('Modify Event Response:', response.body);
     expect(response.status).toBe(200);
     expect(response.body.htmlLink).toBe('http://example.com/event');
   });
@@ -136,14 +138,12 @@ describe.skip('Calendar API', () => {
       `/api/calendar/delete-event/${eventId}`,
     );
 
-    console.log('Delete Event Response:', response.status);
     expect(response.status).toBe(204);
   });
 
   it('should list only future calendar events', async () => {
     const response = await request(app).get('/api/calendar/list-events');
 
-    console.log('List Events Response:', response.body);
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(1);
     expect(response.body[0].summary).toBe('Future Event');
