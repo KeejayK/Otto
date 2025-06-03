@@ -43,4 +43,11 @@ describe('UI Elements Test', () => {
     expect(logo.getAttribute('alt')).toMatch(/logo/i);
     expect(logo.getAttribute('src')).toMatch(/\.(png|svg|jpg)$/);
   });
+
+  test('Google Calendar iframe is present', () => {
+    const iframe = document.querySelector('iframe.google-calendar');
+    expect(iframe).not.toBeNull();
+    expect(iframe.src).toMatch(/calendar\.google\.com/);
+  });
+  
 });
