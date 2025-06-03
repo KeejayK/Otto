@@ -3,14 +3,18 @@ function parseGPTResponse(gptOutput) {
     // Find where the JSON starts/ends in GPT output
     const jsonStart = gptOutput.indexOf('{');
     const jsonEnd = gptOutput.lastIndexOf('}') + 1;
-    const jsonString = gptOutput.slice(jsonStart, jsonEnd);
 
+    if (jsonStart === -1 || jsonEnd === 0) {
+      throw new Error('No JSON object found in the GPT output.');
+    }
+
+    const jsonString = gptOutput.slice(jsonStart, jsonEnd);
     const eventData = JSON.parse(jsonString);
 
-    // must have title, start, end
+    // Required fields validation
     const { title, start, end } = eventData;
     if (!title || !start || !end) {
-      throw new Error('Missing required event fields.');
+      throw new Error('Missing required event fields: title, start, or end.');
     }
 
     // optional
@@ -64,7 +68,7 @@ function parseGPTResponse(gptOutput) {
   } catch (err) {
     console.error('Failed to parse GPT response:', err.message);
     console.error('Raw GPT output was:', gptOutput);
-    throw new Error('Invalid GPT response format');
+    throw new Error(`Parsing error: ${err.message}`);
   }
 }
 

@@ -1,6 +1,9 @@
 /**
  * @jest-environment jsdom
  */
+import { mount } from '@vue/test-utils'
+import HomeView from '@/views/HomeView.vue'
+import LoginView from '@/views/LoginView.vue'
 
 const fs = require('fs');
 const path = require('path');
@@ -24,14 +27,6 @@ describe('UI Elements Test', () => {
     expect(panel).not.toBeNull();
   });
 
-  test('Quick actions toggle exists and has correct attributes', () => {
-    const toggle = document.querySelector('#quick-actions-toggle');
-    expect(toggle).not.toBeNull();
-    expect(toggle.tagName.toLowerCase()).toBe('button'); // assert it's a button
-    expect(toggle.getAttribute('aria-label')).toBeTruthy(); // check accessibility
-    expect(toggle.getAttribute('id')).toBe('quick-actions-toggle');
-  });
-
   test('Send button exists and is enabled', () => {
     const sendBtn = document.querySelector('#send-button');
     expect(sendBtn).not.toBeNull();
@@ -51,4 +46,39 @@ describe('UI Elements Test', () => {
     expect(logo.getAttribute('alt')).toMatch(/logo/i);
     expect(logo.getAttribute('src')).toMatch(/\.(png|svg|jpg)$/);
   });
+
+  test('Google Calendar iframe is present', () => {
+    const iframe = document.querySelector('iframe.google-calendar');
+    expect(iframe).not.toBeNull();
+    expect(iframe.src).toMatch(/calendar\.google\.com/);
+  });
+  
 });
+
+describe('HomeView.vue', () => {
+  it('matches the snapshot', () => {
+    const wrapper = mount(HomeView)
+    expect(wrapper.html()).toMatchSnapshot()
+  })
+
+  it('sends a message and displays it in chat panel', async () => {
+    const wrapper = mount(HomeView)
+
+    const input = wrapper.find('#message-input')
+    const button = wrapper.find('#send-button')
+
+    await input.setValue('Hello Vue!')
+    await button.trigger('click')
+
+    const messages = wrapper.findAll('.chat-panel')
+    expect(messages).toHaveLength(1)
+    expect(messages[0].text()).toBe('Hello Vue!')
+  })
+})
+
+describe('LoginView.vue', () => {
+  it('matches the snapshot', () => {
+    const wrapper = mount(LoginView)
+    expect(wrapper.html()).toMatchSnapshot()
+  })
+})

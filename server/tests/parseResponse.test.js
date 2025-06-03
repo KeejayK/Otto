@@ -1,6 +1,16 @@
 const { parseGPTResponse } = require('../services/nlp/parseResponse');
 
 describe('parseGPTResponse', () => {
+  // Mock console.error to avoid cluttering test output
+  let originalConsoleError;
+  beforeEach(() => {
+    originalConsoleError = console.error;
+    console.error = jest.fn();
+  });
+  
+  afterEach(() => {
+    console.error = originalConsoleError;
+  });
   test('correctly parses valid GPT JSON output', () => {
     const gptOutput = `
       Sure! Here's the event:
@@ -22,21 +32,35 @@ describe('parseGPTResponse', () => {
     expect(result.description).toBe('Weekly lecture');
   });
 
-  test('throws an error for invalid JSON', () => {
+  test('throws detailed error for invalid JSON', () => {
     const malformedOutput = `This is not JSON at all!`;
     expect(() => parseGPTResponse(malformedOutput)).toThrow(
-      'Invalid GPT response format'
+      'Parsing error: No JSON object found in the GPT output.'
     );
   });
 
-  test('throws an error if required fields are missing', () => {
+  test('throws detailed error if required fields are missing', () => {
     const incompleteOutput = `
       {
         "title": "Incomplete Event"
       }
     `;
     expect(() => parseGPTResponse(incompleteOutput)).toThrow(
-      'Invalid GPT response format'
+      'Parsing error: Missing required event fields: title, start, or end.'
+    );
+  });
+  
+  test('throws detailed error when no JSON is present in GPT response', () => {
+    const noJsonOutput = `This is a plain text response without any JSON.`;
+    expect(() => parseGPTResponse(noJsonOutput)).toThrow(
+      'Parsing error: No JSON object found in the GPT output.'
+    );
+  });
+
+  test('throws detailed error for JSON without required fields', () => {
+    const noFieldsOutput = `{}`;
+    expect(() => parseGPTResponse(noFieldsOutput)).toThrow(
+      'Parsing error: Missing required event fields: title, start, or end.'
     );
   });
 
