@@ -237,11 +237,10 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             }
           }
         } else {
+          // When input is not a confirmation, simply delete the pending event without responding
           delete sessionState[sessionId].pendingEvent;
-          const replyMessage = 'Action cancelled.';
-          chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
-          chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
-          return res.status(200).json({ message: replyMessage });
+          
+          // Continue to process the message as a new request
         }
       } else {
         // User is providing missing info for update/create
@@ -276,11 +275,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           pending.awaitingConfirmation = true;
           let replyMessage;
           if (pending.action === 'update') {
-            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nUpdate: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
           } else if (pending.action === 'delete') {
-            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nDelete: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
           } else {
-            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n`;
+            replyMessage = `❓ **Please confirm:**\n\nAdd to calendar: **${pending.title}**\n- 🗓️ From ${pending.start} to ${pending.end}${pending.location ? `\n- 📍 ${pending.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
           }
           chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
           chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
@@ -801,7 +800,7 @@ What would you like to do today? You can ask me to:
         
         console.log("Formatted times for display:", formattedStart, formattedEnd);
         
-        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n`;
+        replyMessage = `❓ **Please confirm:**\n\nUpdate **${updateData.title}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${updateData.location ? `\n- 📍 ${updateData.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
@@ -860,7 +859,7 @@ What would you like to do today? You can ask me to:
           hour: 'numeric', minute: 'numeric'
         });
         
-        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n`;
+        replyMessage = `❓ **Please confirm:**\n\nDelete: **${event?.summary}**\n- 🗓️ ${formattedStart} - ${formattedEnd}${event?.location ? `\n- 📍 ${event.location}` : ''}\n\nSay "yes" to confirm, or ask me something else.\n`;
         chatHistory.push({ id: Date.now().toString(), message: userMessage, role: 'user', timestamp: new Date() });
         chatHistory.push({ id: (Date.now() + 1).toString(), message: replyMessage, role: 'assistant', timestamp: new Date() });
         return res.status(200).json({ message: replyMessage });
