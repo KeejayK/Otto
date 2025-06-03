@@ -7,7 +7,7 @@ const cors = require('cors');
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'https://ottocalendar.netlify.app'];
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'https://ottocalendar.netlify.app', 'https://otto-8z43.onrender.com'];
 app.use(
   cors({
     origin: function (origin, callback) {

@@ -279,7 +279,10 @@ const formData = ref({
 
 // Compute calendar URL based on user's email
 const calendarUrl = computed(() => {
-  return "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FLos_Angeles&showPrint=0&src=a2VlamF5a0BnbWFpbC5jb20&src=bWNjdWYydnN1ZDNuOWxpYm0wY2oxcmcxbjhAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&src=Y2xpbWJpbmdjbHVidXdAZ21haWwuY29t&mode=WEEK"
+  const profile = authStore.getUserProfile();
+  if (!profile?.email) return null;
+  const encodedEmail = encodeURIComponent(profile.email);
+  return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
 });
 
 
