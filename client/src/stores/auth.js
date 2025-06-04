@@ -160,17 +160,18 @@ export const useAuthStore = defineStore('auth', {
     initialize() {
       console.log('[AuthStore] initialize() called');
       onAuthStateChanged(auth, async (user) => {
-        console.log('[AuthStore] onAuthStateChanged →', user); 
+        console.log('[AuthStore] onAuthStateChanged →', user);
         if (user) {
           this.user = user;
+          // Ensure idToken is fetched before proceeding
           this.idToken = await user.getIdToken();
-          
+
           // Store user profile information when session is initialized
           this.userProfile = {
             displayName: user.displayName || '',
             email: user.email || '',
             photoURL: processGooglePhotoUrl(user.photoURL),
-            uid: user.uid
+            uid: user.uid,
           };
 
           console.log('[AuthStore] signed in as:', this.userProfile);
