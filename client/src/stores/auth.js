@@ -1,10 +1,11 @@
+// client/src/stores/auth.js
+
 import { defineStore } from 'pinia';
 import { loginWithGoogle } from '@/services/auth';
 import { auth } from '@/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { processGooglePhotoUrl } from '@/utils/profileHelper';
 
-// Add this at the top of the file with other imports
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -19,7 +20,9 @@ export const useAuthStore = defineStore('auth', {
     idToken: null,
     accessToken: null,
     calendarAccess: false,
-    userProfile: null, // Add userProfile to store user's name and picture
+    userProfile: null,
+    isAuthInitialized: false, // Indicates if onAuthStateChanged has completed its first run
+    isAuthenticated: false, // Make this a direct state property
   }),
   actions: {
     // Initialize the store and set up auth state listener
@@ -28,27 +31,26 @@ export const useAuthStore = defineStore('auth', {
       this.user = user;
       this.idToken = idToken;
       this.accessToken = accessToken;
-      
-      // Extract and save the user profile information
+      this.isAuthenticated = !!user; // Set directly after login
+
       if (user) {
         this.userProfile = {
           displayName: user.displayName || '',
           email: user.email || '',
           photoURL: processGooglePhotoUrl(user.photoURL),
-          uid: user.uid
+          uid: user.uid,
         };
       }
 
-      // Send tokens to backend to verify and check calendar access
-      const response = await fetch('http://localhost:3000/api/auth/google', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/google`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${idToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           accessToken,
-          profile: this.userProfile // Send profile info to the server
+          profile: this.userProfile,
         }),
       });
 
@@ -57,6 +59,7 @@ export const useAuthStore = defineStore('auth', {
         const data = await response.json();
         this.calendarAccess = data.calendarAccess || false;
       }
+      this.isAuthInitialized = true;
     },
 
     // Request calendar access from the backend
@@ -65,7 +68,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const response = await fetch(
-          'http://localhost:3000/api/auth/calendar-access',
+          `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/calendar-access`,
           {
             method: 'POST',
             headers: {
@@ -92,13 +95,15 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null;
       this.calendarAccess = false;
       this.userProfile = null;
+      this.isAuthenticated = false; // Set directly after logout
+      this.isAuthInitialized = true;
     },
 
     // Retrieve the user profile
     getUserProfile() {
       return this.userProfile || this.user;
     },
-    
+
     refreshProfilePhoto() {
       if (this.user && this.user.photoURL) {
         if (this.userProfile) {
@@ -108,20 +113,17 @@ export const useAuthStore = defineStore('auth', {
             displayName: this.user.displayName || '',
             email: this.user.email || '',
             photoURL: processGooglePhotoUrl(this.user.photoURL),
-            uid: this.user.uid
+            uid: this.user.uid,
           };
         }
       }
       return this.userProfile?.photoURL;
     },
-    
+
     async refreshToken() {
-      // If we have a user but need to refresh the ID token
       if (this.user) {
         try {
           this.idToken = await this.user.getIdToken(true);
-          
-          // Also refresh the profile photo URL while we're at it
           this.refreshProfilePhoto();
           return true;
         } catch (error) {
@@ -131,14 +133,11 @@ export const useAuthStore = defineStore('auth', {
       }
       return false;
     },
-    
+
     async reloadUserProfile() {
-      // Force a refresh of the user data from Firebase
       if (this.user) {
         try {
           await this.user.reload();
-          
-          // Update the userProfile with fresh data
           if (this.user.photoURL) {
             this.userProfile = {
               ...this.userProfile,
@@ -156,10 +155,10 @@ export const useAuthStore = defineStore('auth', {
       return false;
     },
 
-    // Check if the user is authenticated
-    get isAuthenticated() {
-      return !!this.user;
-    },
+    // Remove the getter, it's now a state property
+    // get isAuthenticated() {
+    //   return !!this.user;
+    // },
 
     // Returns true if user has calendar access
     get hasCalendarAccess() {
@@ -168,25 +167,36 @@ export const useAuthStore = defineStore('auth', {
 
     // Initialize the store and set up auth state listener
     initialize() {
+      console.log('[AuthStore] initialize() called');
       onAuthStateChanged(auth, async (user) => {
+        console.log('[AuthStore] onAuthStateChanged →', user);
         if (user) {
           this.user = user;
           this.idToken = await user.getIdToken();
-          
-          // Store user profile information when session is initialized
+
           this.userProfile = {
             displayName: user.displayName || '',
             email: user.email || '',
             photoURL: processGooglePhotoUrl(user.photoURL),
-            uid: user.uid
+            uid: user.uid,
           };
+          // Set isAuthenticated directly
+          this.isAuthenticated = true; // Set this AFTER this.user is assigned
+          console.log('[AuthStore] signed in as:', this.userProfile);
+          console.log(`[AuthStore] isAuthenticated set to: ${this.isAuthenticated}`); // Log to confirm
         } else {
+          console.log('[AuthStore] no user currently signed in');
           this.user = null;
           this.idToken = null;
           this.accessToken = null;
           this.calendarAccess = false;
           this.userProfile = null;
+          // Set isAuthenticated directly
+          this.isAuthenticated = false;
         }
+        // Always set isAuthInitialized to true after onAuthStateChanged has run
+        this.isAuthInitialized = true;
+        console.log(`[AuthStore] isAuthInitialized set to: ${this.isAuthInitialized}`);
       });
     },
   },

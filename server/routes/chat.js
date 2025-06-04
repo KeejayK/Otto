@@ -16,6 +16,11 @@ const sessionState = {};
 // Chat history storage (in-memory for now)
 let chatHistory = [];
 
+
+const CALENDAR_BASE =
+  process.env.CALENDAR_API_URL?.replace(/\/$/, '') || 'http://localhost:3000/api/calendar';
+
+
 // GET /api/chat/history
 router.get('/history', (req, res) => {
   res.json(chatHistory);
@@ -75,7 +80,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                   // Get the event from the API to get current date
                   try {
                     const eventRes = await axios.get(
-                      `http://localhost:3000/api/calendar/get-event/${pending.eventId}`,
+                      `${CALENDAR_BASE}/get-event/${pending.eventId}`,
                       { headers: { Authorization: authHeader } }
                     );
                     
@@ -226,7 +231,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Delete event
             try {
               await axios.delete(
-                `http://localhost:3000/api/calendar/delete-event/${pending.eventId}`,
+                `${CALENDAR_BASE}/delete-event/${pending.eventId}`,
                 { headers: { Authorization: authHeader } }
               );
               delete sessionState[sessionId].pendingEvent;
@@ -245,7 +250,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Create event
             try {
               const calendarRes = await axios.post(
-                'http://localhost:3000/api/calendar/add-event',
+                `${CALENDAR_BASE}/add-event`,
                 {
                   summary: pending.title,
                   location: pending.location,
@@ -380,7 +385,7 @@ What would you like to do today? You can ask me to:
         const userMessage = (req.body.message || '').toLowerCase(); // Get user message
 
         const listRes = await axios.get(
-          'http://localhost:3000/api/calendar/list-events',
+          `${CALENDAR_BASE}/list-events`,
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;
@@ -579,7 +584,7 @@ What would you like to do today? You can ask me to:
       case 'update': {
         // grab existing list of events
         const listRes = await axios.get(
-          'http://localhost:3000/api/calendar/list-events',
+          `${CALENDAR_BASE}/list-events`,
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;
@@ -1108,7 +1113,7 @@ What would you like to do today? You can ask me to:
       case 'delete': {
         // grab existing list of events
         const listRes = await axios.get(
-          'http://localhost:3000/api/calendar/list-events',
+          `${CALENDAR_BASE}/list-events`,
           { headers: { Authorization: authHeader } }
         );
         const events = listRes.data;

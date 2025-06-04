@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const calendarRoutes = require('./routes/calendar');
@@ -7,7 +8,7 @@ const cors = require('cors');
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'https://ottocalendar.netlify.app', 'https://otto-8z43.onrender.com'];
 app.use(
   cors({
     origin: function (origin, callback) {

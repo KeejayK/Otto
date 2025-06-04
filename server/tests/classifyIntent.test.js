@@ -1,50 +1,46 @@
-// Mock the OpenAI module to control its behavior
-jest.mock('openai', () => ({
-  OpenAI: jest.fn()
-}));
+jest.mock('openai', () => {
+  const createMock = jest.fn();
+  return {
+    OpenAI: jest.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: createMock
+        }
+      }
+    })),
+    __createMock: createMock // expose for beforeEach
+  };
+});
 
-const { OpenAI } = require('openai');
+const { OpenAI, __createMock } = require('openai');
 
-describe.skip('classifyIntent', () => {
+describe('classifyIntent', () => {
   let classifyIntent;
 
   beforeEach(() => {
-    jest.resetModules();
 
-    OpenAI.mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: jest.fn(({ messages }) => {
-            const prompt = messages[0].content.toLowerCase();
+    // Set the implementation for the create mock
+    __createMock.mockImplementation(async ({ messages }) => {
+      const prompt = messages[0].content;
+      const userMessageMatch = prompt.match(/Message:\s*"([^"]+)"/m);
+      const userMessage = userMessageMatch ? userMessageMatch[1].toLowerCase() : '';
 
-            if (prompt.includes('when is my next exam') || prompt.includes('what')) {
-              return Promise.resolve({ choices: [{ message: { content: 'query' } }] });
-            }
-            if (prompt.includes('add') || prompt.includes('create')) {
-              return Promise.resolve({ choices: [{ message: { content: 'create' } }] });
-            }
-            if (prompt.includes('list') || prompt.includes('show')) {
-              return Promise.resolve({ choices: [{ message: { content: 'list' } }] });
-            }
-            if (prompt.includes('update') || prompt.includes('change')) {
-              return Promise.resolve({ choices: [{ message: { content: 'update' } }] });
-            }
-            if (prompt.includes('delete') || prompt.includes('remove')) {
-              return Promise.resolve({ choices: [{ message: { content: 'delete' } }] });
-            }
-            // Default fallback
-            return Promise.resolve({ choices: [{ message: { content: 'query' } }] });
-          })
-        }
+      if (userMessage.includes('add') || userMessage.includes('create')) {
+        return { choices: [{ message: { content: 'create' } }] };
       }
-    }));
+      if (userMessage.includes('list') || userMessage.includes('show')) {
+        return { choices: [{ message: { content: 'list' } }] };
+      }
+      if (userMessage.includes('update') || userMessage.includes('change')) {
+        return { choices: [{ message: { content: 'update' } }] };
+      }
+      if (userMessage.includes('delete') || userMessage.includes('remove')) {
+        return { choices: [{ message: { content: 'delete' } }] };
+      }
+      return { choices: [{ message: { content: 'unclear' } }] };
+    });
 
     classifyIntent = require('../services/nlp/classifyIntent').classifyIntent;
-  });
-
-  it('returns "query" for informational questions', async () => {
-    const result = await classifyIntent('When is my next exam?');
-    expect(result).toBe('query');
   });
 
   it('returns "create" for requests to add an event', async () => {
@@ -67,16 +63,8 @@ describe.skip('classifyIntent', () => {
     expect(result).toBe('delete');
   });
 
-  it('defaults to "query" if the model returns something unexpected', async () => {
-    // Manually mock the completion to something invalid
-    OpenAI.mockImplementationOnce(() => ({
-      chat: {
-        completions: {
-          create: () => Promise.resolve({ choices: [{ message: { content: 'foobar' } }] })
-        }
-      }
-    }));
-    const fallback = await classifyIntent('This will fallback');
-    expect(fallback).toBe('query');
+  it('returns "unclear" for unrelated or unclear messages', async () => {
+    const result = await classifyIntent('hello world');
+    expect(result).toBe('unclear');
   });
 });

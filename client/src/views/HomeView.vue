@@ -218,15 +218,23 @@
         </button>
       </div>
     </div>
-
-    <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
+    <div v-if="!authStore.isAuthInitialized" class="calendar-placeholder">
+      <h3>Checking authentication status...</h3>
+      <p>Please wait a moment.</p>
+    </div>
+    <div v-else-if="!authStore.isAuthenticated" class="calendar-placeholder">
       <div class="auth-prompt">
         <h3>Please sign in to access your calendar</h3>
         <p>Sign in with your Google account to view and manage your calendar events.</p>
         <button class="signin-button-large" @click="navigateToLogin">Sign In with Google</button>
       </div>
     </div>
-    <div v-else-if="calendarUrl" class="calendar-wrapper">
+    <div v-else-if="!calendarUrl" class="calendar-loading-placeholder">
+      <h3>Loading Calendar...</h3>
+      <p>Authenticated. Waiting for calendar details to load.</p>
+      <p>Debug Info: Profile Email: {{ authStore.getUserProfile()?.email || 'Not available yet' }}</p>
+    </div>
+    <div v-else class="calendar-wrapper">
       <iframe
         ref="calendarIframe"
         :key="iframeKey"
@@ -247,6 +255,8 @@ import { useAuthStore } from '@/stores/auth';
 import { chatApi } from '@/services/api'; // Import the existing chatApi
 import { useRouter } from 'vue-router';
 import VueMarkdownIt from 'vue3-markdown-it';
+
+import { watchEffect } from 'vue';
 
 
 const router = useRouter();
@@ -285,10 +295,16 @@ const formData = ref({
 const calendarUrl = computed(() => {
   const profile = authStore.getUserProfile();
   if (!profile?.email) return null;
-
   const encodedEmail = encodeURIComponent(profile.email);
-  
   return `https://calendar.google.com/calendar/embed?src=${encodedEmail}&wkst=1&bgcolor=%23ffffff&ctz=America%2FLos_Angeles&mode=WEEK&showPrint=0&showNav=1&showTitle=0&showCalendars=0&showTz=1`;
+});
+
+
+watchEffect(() => {
+  console.log(`[HomeView watchEffect] authStore.isAuthenticated: ${authStore.isAuthenticated}`);
+  const profile = authStore.getUserProfile();
+  console.log(`[HomeView watchEffect] authStore.profile?.email: ${profile?.email}`);
+  console.log(`[HomeView watchEffect] calendarUrl value: ${calendarUrl.value}`);
 });
 
 // Function to check if a message is requesting confirmation
@@ -883,8 +899,33 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   }
 });
 
+watch(() => authStore.isAuthInitialized, (newVal) => {
+    console.log(`[HomeView Watch] authStore.isAuthInitialized CHANGED: ${newVal}`);
+});
+
+console.log(`[HomeView] Initial Render: authStore.isAuthenticated = ${authStore.isAuthenticated}`);
+console.log(`[HomeView] Initial Render: authStore.getUserProfile() =`, authStore.getUserProfile());
+console.log(`[HomeView] Initial Render: calendarUrl.value = ${calendarUrl.value}`);
+
+watch(() => authStore.isAuthenticated, (newVal, oldVal) => {
+  console.log(`[HomeView Watch] authStore.isAuthenticated CHANGED from ${oldVal} to ${newVal}`);
+  if (newVal) {
+    console.log(`[HomeView Watch] After isAuthenticated became true:`);
+    console.log(`  authStore.getUserProfile() =`, authStore.getUserProfile());
+    console.log(`  calendarUrl.value = ${calendarUrl.value}`);
+  }
+});
+
+watch(() => authStore.getUserProfile(), (newProfile, oldProfile) => {
+  console.log('[HomeView Watch] authStore.getUserProfile() CHANGED: New profile:', newProfile, 'Old profile:', oldProfile);
+  console.log(`  Corresponding calendarUrl.value = ${calendarUrl.value}`); // calendarUrl should recompute
+}, { deep: true });
+
 onMounted(() => {
   console.log('HomeView mounted');
+  console.log(`[HomeView] Mounted: authStore.isAuthenticated = ${authStore.isAuthenticated}`);
+  console.log(`[HomeView] Mounted: authStore.getUserProfile() =`, authStore.getUserProfile());
+  console.log(`[HomeView] Mounted: calendarUrl.value = ${calendarUrl.value}`);
   chatMessages.value.push({
     role: 'assistant',
     content:

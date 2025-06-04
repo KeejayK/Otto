@@ -14,7 +14,7 @@ const router = useRouter();
 onMounted(() => {
   // For demo purposes, just redirect to home after a short delay
   setTimeout(() => {
-    router.replace('/');
+    router.replace('/home');
   }, 1500);
 });
 </script>

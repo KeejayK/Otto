@@ -2,6 +2,7 @@ const express = require('express');
 const admin = require('../firebase');
 const verifyFirebaseToken = require('../middleware/auth');
 
+
 const router = express.Router();
 
 // Route to handle Google authentication token storage
@@ -15,7 +16,27 @@ router.post('/google', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    // Create a data object with all the information to store
+
+    const tokenInfoResponse = await fetch(
+      `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`
+    );
+
+    if (!tokenInfoResponse.ok) {
+      console.warn('tokeninfo lookup failed:', await tokenInfoResponse.text());
+    }
+    const tokenInfo = tokenInfoResponse.ok
+      ? await tokenInfoResponse.json()
+      : {};
+
+    const scopeString = tokenInfo.scope || '';
+    const hasCalendarEventsScope = scopeString
+      .split(' ')
+      .includes('https://www.googleapis.com/auth/calendar.events');
+    const hasCalendarScope = scopeString
+      .split(' ')
+      .includes('https://www.googleapis.com/auth/calendar');
+    const calendarAccess = hasCalendarScope && hasCalendarEventsScope;
+
     const userData = {
       google: {
         accessToken,
@@ -23,7 +44,6 @@ router.post('/google', verifyFirebaseToken, async (req, res) => {
       },
     };
 
-    // Add profile information if available
     if (profile) {
       userData.profile = {
         displayName: profile.displayName || '',
@@ -34,25 +54,22 @@ router.post('/google', verifyFirebaseToken, async (req, res) => {
       };
     }
 
-    // Use a transaction to properly handle the firstLogin field
     const userRef = admin.firestore().collection('users').doc(uid);
-
-    await admin.firestore().runTransaction(async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-
-      // If the user doc already exists and has a profile with firstLogin, don't overwrite it
+    await admin.firestore().runTransaction(async (tx) => {
+      const userDoc = await tx.get(userRef);
       if (userDoc.exists && userDoc.data().profile && userDoc.data().profile.firstLogin) {
         delete userData.profile.firstLogin;
       }
-
-      transaction.set(userRef, userData, { merge: true });
+      tx.set(userRef, userData, { merge: true });
     });
 
-    res.json({ success: true }); // Respond with success
+    return res.json({
+      success: true,
+      calendarAccess,
+    });
   } catch (error) {
-    // Handle any errors that occur during the Firestore operation
-    console.error('Error saving token:', error);
-    res.status(500).json({ error: 'Failed to store token' });
+    console.error('Error in /auth/google:', error);
+    return res.status(500).json({ error: 'Failed to store token' });
   }
 });
 
