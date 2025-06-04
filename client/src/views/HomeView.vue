@@ -210,15 +210,23 @@
         </button>
       </div>
     </div>
-
-    <div v-if="!authStore.isAuthenticated" class="calendar-placeholder">
-  </div>
-  <div v-else-if="authStore.isAuthenticated && !calendarUrl" class="calendar-loading-placeholder">
-    <h3>Loading Calendar...</h3>
-    <p>Authenticated. Waiting for calendar details to load.</p>
-    <p>Debug Info: Profile Email: {{ authStore.getUserProfile()?.email || 'Not available yet' }}</p>
-  </div>
-    <div v-else-if="calendarUrl" class="calendar-wrapper">
+    <div v-if="!authStore.isAuthInitialized" class="calendar-placeholder">
+      <h3>Checking authentication status...</h3>
+      <p>Please wait a moment.</p>
+    </div>
+    <div v-else-if="!authStore.isAuthenticated" class="calendar-placeholder">
+      <div class="auth-prompt">
+        <h3>Please sign in to access your calendar</h3>
+        <p>Sign in with your Google account to view and manage your calendar events.</p>
+        <button class="signin-button-large" @click="navigateToLogin">Sign In with Google</button>
+      </div>
+    </div>
+    <div v-else-if="!calendarUrl" class="calendar-loading-placeholder">
+      <h3>Loading Calendar...</h3>
+      <p>Authenticated. Waiting for calendar details to load.</p>
+      <p>Debug Info: Profile Email: {{ authStore.getUserProfile()?.email || 'Not available yet' }}</p>
+    </div>
+    <div v-else class="calendar-wrapper">
       <iframe
         ref="calendarIframe"
         :key="iframeKey"
@@ -879,6 +887,11 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
     iframeKey.value += 1;
   }
 });
+
+watch(() => authStore.isAuthInitialized, (newVal) => {
+    console.log(`[HomeView Watch] authStore.isAuthInitialized CHANGED: ${newVal}`);
+});
+
 console.log(`[HomeView] Initial Render: authStore.isAuthenticated = ${authStore.isAuthenticated}`);
 console.log(`[HomeView] Initial Render: authStore.getUserProfile() =`, authStore.getUserProfile());
 console.log(`[HomeView] Initial Render: calendarUrl.value = ${calendarUrl.value}`);

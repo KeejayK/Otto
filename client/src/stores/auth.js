@@ -1,10 +1,10 @@
+// client/src/stores/auth.js
 import { defineStore } from 'pinia';
 import { loginWithGoogle } from '@/services/auth';
 import { auth } from '@/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { processGooglePhotoUrl } from '@/utils/profileHelper';
 
-// Add this at the top of the file with other imports
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -18,7 +18,9 @@ export const useAuthStore = defineStore('auth', {
     idToken: null,
     accessToken: null,
     calendarAccess: false,
-    userProfile: null, // Add userProfile to store user's name and picture
+    userProfile: null,
+    // Add this new state variable
+    isAuthInitialized: false, // Indicates if onAuthStateChanged has completed its first run
   }),
   actions: {
     async login() {
@@ -26,14 +28,13 @@ export const useAuthStore = defineStore('auth', {
       this.user = user;
       this.idToken = idToken;
       this.accessToken = accessToken;
-      
-      // Extract and save the user profile information
+
       if (user) {
         this.userProfile = {
           displayName: user.displayName || '',
           email: user.email || '',
           photoURL: processGooglePhotoUrl(user.photoURL),
-          uid: user.uid
+          uid: user.uid,
         };
       }
 
@@ -43,9 +44,9 @@ export const useAuthStore = defineStore('auth', {
           Authorization: `Bearer ${idToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           accessToken,
-          profile: this.userProfile // Send profile info to the server
+          profile: this.userProfile,
         }),
       });
 
@@ -53,6 +54,8 @@ export const useAuthStore = defineStore('auth', {
         const data = await response.json();
         this.calendarAccess = data.calendarAccess || false;
       }
+      // Ensure isAuthInitialized is true after login flow
+      this.isAuthInitialized = true;
     },
 
     async requestCalendarAccess() {
@@ -86,12 +89,13 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null;
       this.calendarAccess = false;
       this.userProfile = null;
+      this.isAuthInitialized = true; // Still initialized, just logged out
     },
 
     getUserProfile() {
       return this.userProfile || this.user;
     },
-    
+
     refreshProfilePhoto() {
       if (this.user && this.user.photoURL) {
         if (this.userProfile) {
@@ -101,20 +105,17 @@ export const useAuthStore = defineStore('auth', {
             displayName: this.user.displayName || '',
             email: this.user.email || '',
             photoURL: processGooglePhotoUrl(this.user.photoURL),
-            uid: this.user.uid
+            uid: this.user.uid,
           };
         }
       }
       return this.userProfile?.photoURL;
     },
-    
+
     async refreshToken() {
-      // If we have a user but need to refresh the ID token
       if (this.user) {
         try {
           this.idToken = await this.user.getIdToken(true);
-          
-          // Also refresh the profile photo URL while we're at it
           this.refreshProfilePhoto();
           return true;
         } catch (error) {
@@ -124,14 +125,11 @@ export const useAuthStore = defineStore('auth', {
       }
       return false;
     },
-    
+
     async reloadUserProfile() {
-      // Force a refresh of the user data from Firebase
       if (this.user) {
         try {
           await this.user.reload();
-          
-          // Update the userProfile with fresh data
           if (this.user.photoURL) {
             this.userProfile = {
               ...this.userProfile,
@@ -163,7 +161,6 @@ export const useAuthStore = defineStore('auth', {
         console.log('[AuthStore] onAuthStateChanged →', user);
         if (user) {
           this.user = user;
-          // Ensure idToken is fetched before proceeding
           this.idToken = await user.getIdToken();
 
           // Store user profile information when session is initialized
@@ -173,7 +170,6 @@ export const useAuthStore = defineStore('auth', {
             photoURL: processGooglePhotoUrl(user.photoURL),
             uid: user.uid,
           };
-
           console.log('[AuthStore] signed in as:', this.userProfile);
         } else {
           console.log('[AuthStore] no user currently signed in');
@@ -183,6 +179,9 @@ export const useAuthStore = defineStore('auth', {
           this.calendarAccess = false;
           this.userProfile = null;
         }
+        // Set isAuthInitialized to true once onAuthStateChanged has completed its first run
+        this.isAuthInitialized = true;
+        console.log(`[AuthStore] isAuthInitialized set to: ${this.isAuthInitialized}`);
       });
     },
   },
