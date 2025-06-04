@@ -9,6 +9,14 @@
           <div v-if="!authStore.isAuthenticated" class="auth-status">
             <button class="signin-button" @click="navigateToLogin">Sign In</button>
           </div>
+          <div v-if="authStore.isAuthenticated">
+            <button class="new-chat-button" :disabled="isClearing" @click="clearChatHistory">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
+              </svg>
+              New Chat
+            </button>
+          </div>
         </div>
       </div>
 
@@ -242,7 +250,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed, watch } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { chatApi } from '@/services/api'; // Import the existing chatApi
 import { useRouter } from 'vue-router';
@@ -258,6 +266,7 @@ const userMessage = ref('');
 const chatMessages = ref([]);
 const iframeKey = ref(0);
 const isLoading = ref(false);
+const isClearing = ref(false); // Ensure isClearing is defined
 
 // In-chat form state
 const showInChatForm = ref(false);
@@ -838,7 +847,9 @@ const clearChatHistory = async () => {
       role: 'assistant',
       content: "Chat history has been cleared. How can I help you today?",
     }];
-    scrollToBottom();
+    // Ensure scrollToBottom is awaited if it's async, or just called if not.
+    // Assuming scrollToBottom handles nextTick internally or is called after UI updates.
+    scrollToBottom(); 
   } catch (error) {
     console.error('Error clearing chat history:', error);
     chatMessages.value.push({
@@ -1333,6 +1344,35 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+/* Add styles for the new chat button */
+.new-chat-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* Spacing between icon and text */
+  padding: 0.5rem 1rem;
+  background: var(--gradient-primary, linear-gradient(90deg, #0ea5e9, #0284c7)); /* Fallback gradient */
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md, 8px); /* Fallback border-radius */
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05)); /* Fallback shadow */
+}
+
+.new-chat-button:hover:not([disabled]) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)); /* Fallback shadow */
+  filter: brightness(110%);
+}
+
+.new-chat-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: var(--color-gray-300, #d1d5db); /* Disabled background color */
 }
 
 .clear-chat-button {

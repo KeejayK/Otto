@@ -5,11 +5,13 @@ const verifyFirebaseToken = require('../middleware/auth');
 
 const router = express.Router();
 
+// Route to handle Google authentication token storage
 router.post('/google', verifyFirebaseToken, async (req, res) => {
   const uid = req.user.uid;
   const { accessToken, profile } = req.body;
 
   if (!accessToken) {
+    // If access token is not provided, return an error
     return res.status(400).json({ error: 'Missing Google access token' });
   }
 
@@ -71,4 +73,4 @@ router.post('/google', verifyFirebaseToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; // Export the router to be used in the main app

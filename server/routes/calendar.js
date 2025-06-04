@@ -139,12 +139,45 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
     }
 
     // Build the event resource
+    // Log the input received from the client
+    console.log('Update request received with times:', { start, end });
+    
+    // Ensure we have valid start and end times
+    if (!start || !end) {
+      console.error('Missing start or end time:', { start, end });
+      return res.status(400).json({ error: 'Missing start or end time' });
+    }
+    
+    // Don't create new Date objects which can cause timezone issues
+    // Instead, directly use the ISO strings provided if they're valid
+    let isoStart, isoEnd;
+    
+    // Check if the strings are already valid ISO format
     const startDate = new Date(start);
     const endDate = new Date(end);
-
-    const isoStart = startDate.toISOString();
-    const isoEnd = endDate.toISOString();
     
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.error('Invalid date format received:', { start, end });
+      return res.status(400).json({ error: 'Invalid date format for start or end time' });
+    }
+    
+    // Use the original strings if they're already valid ISO format
+    if (start.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
+      isoStart = start;
+    } else {
+      isoStart = startDate.toISOString();
+    }
+    
+    if (end.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
+      isoEnd = end;
+    } else {
+      isoEnd = endDate.toISOString();
+    }
+
+    console.log(`Parsed and converted times: ${isoStart}, ${isoEnd}`);
+
+    // Keep existing fields if not provided in the update
     const event = {
       summary,
       location,
@@ -153,12 +186,23 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
       end: { dateTime: isoEnd, timeZone: 'America/Los_Angeles' },
     };
 
+    // Log the exact payload we're sending to Google Calendar API
+    console.log('Sending update to Google Calendar with payload:', {
+      summary: event.summary,
+      start: event.start,
+      end: event.end,
+      location: event.location,
+      description: event.description
+    });
+    
     // Update the event
     const response = await calendar.events.update({
       calendarId: 'primary',
       eventId: eventId,
       requestBody: event,
     });
+
+    console.log('Received response from Google Calendar API');
 
     // Return the event link
     return res.json({ htmlLink: response.data.htmlLink });
@@ -180,6 +224,15 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
     const response = await calendar.events.get({
       calendarId: 'primary',
       eventId: eventId,
+    });
+
+    console.log('Event retrieved:', response.data.id);
+    
+    // Log event start/end times for debugging
+    const eventData = response.data;
+    console.log('Retrieved event times:', {
+      start: eventData.start?.dateTime || eventData.start?.date,
+      end: eventData.end?.dateTime || eventData.end?.date
     });
 
     // Return the event data
