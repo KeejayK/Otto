@@ -1,4 +1,5 @@
 // client/src/stores/auth.js
+
 import { defineStore } from 'pinia';
 import { loginWithGoogle } from '@/services/auth';
 import { auth } from '@/firebase';
@@ -19,8 +20,8 @@ export const useAuthStore = defineStore('auth', {
     accessToken: null,
     calendarAccess: false,
     userProfile: null,
-    // Add this new state variable
     isAuthInitialized: false, // Indicates if onAuthStateChanged has completed its first run
+    isAuthenticated: false, // Make this a direct state property
   }),
   actions: {
     async login() {
@@ -28,6 +29,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = user;
       this.idToken = idToken;
       this.accessToken = accessToken;
+      this.isAuthenticated = !!user; // Set directly after login
 
       if (user) {
         this.userProfile = {
@@ -54,7 +56,6 @@ export const useAuthStore = defineStore('auth', {
         const data = await response.json();
         this.calendarAccess = data.calendarAccess || false;
       }
-      // Ensure isAuthInitialized is true after login flow
       this.isAuthInitialized = true;
     },
 
@@ -89,7 +90,8 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null;
       this.calendarAccess = false;
       this.userProfile = null;
-      this.isAuthInitialized = true; // Still initialized, just logged out
+      this.isAuthenticated = false; // Set directly after logout
+      this.isAuthInitialized = true;
     },
 
     getUserProfile() {
@@ -147,9 +149,10 @@ export const useAuthStore = defineStore('auth', {
       return false;
     },
 
-    get isAuthenticated() {
-      return !!this.user;
-    },
+    // Remove the getter, it's now a state property
+    // get isAuthenticated() {
+    //   return !!this.user;
+    // },
 
     get hasCalendarAccess() {
       return this.calendarAccess;
@@ -163,14 +166,16 @@ export const useAuthStore = defineStore('auth', {
           this.user = user;
           this.idToken = await user.getIdToken();
 
-          // Store user profile information when session is initialized
           this.userProfile = {
             displayName: user.displayName || '',
             email: user.email || '',
             photoURL: processGooglePhotoUrl(user.photoURL),
             uid: user.uid,
           };
+          // Set isAuthenticated directly
+          this.isAuthenticated = true; // Set this AFTER this.user is assigned
           console.log('[AuthStore] signed in as:', this.userProfile);
+          console.log(`[AuthStore] isAuthenticated set to: ${this.isAuthenticated}`); // Log to confirm
         } else {
           console.log('[AuthStore] no user currently signed in');
           this.user = null;
@@ -178,8 +183,10 @@ export const useAuthStore = defineStore('auth', {
           this.accessToken = null;
           this.calendarAccess = false;
           this.userProfile = null;
+          // Set isAuthenticated directly
+          this.isAuthenticated = false;
         }
-        // Set isAuthInitialized to true once onAuthStateChanged has completed its first run
+        // Always set isAuthInitialized to true after onAuthStateChanged has run
         this.isAuthInitialized = true;
         console.log(`[AuthStore] isAuthInitialized set to: ${this.isAuthInitialized}`);
       });
