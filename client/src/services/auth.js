@@ -8,10 +8,14 @@ import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
  * @throws {Error} If the Google OAuth credential is not found.
  */
 export async function loginWithGoogle() {
-  const auth = getAuth(); // Get the Firebase Authentication instance
-  const provider = new GoogleAuthProvider(); // Create a new Google Auth Provider instance
-
-  // Request additional scopes for Google Calendar access
+  const auth = getAuth();
+  const provider = new GoogleAuthProvider();
+  
+  // Add profile and email scopes
+  provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+  provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+  
+  // Add calendar scopes
   provider.addScope('https://www.googleapis.com/auth/calendar');
   provider.addScope('https://www.googleapis.com/auth/calendar.events');
 

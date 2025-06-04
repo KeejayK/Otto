@@ -8,9 +8,19 @@ const router = express.Router();
 // Helper function to initialize Google Calendar API
 async function initializeGoogleCalendar(uid) {
   // Retrieve stored Google credentials
-  console.log('Retrieving google creds');
+  console.log('Retrieving google creds for user:', uid);
   const userDoc = await admin.firestore().collection('users').doc(uid).get();
-  const googleCreds = userDoc.data().google;
+  
+  if (!userDoc.exists) {
+    throw new Error('User document not found');
+  }
+  
+  const userData = userDoc.data();
+  if (!userData || !userData.google) {
+    throw new Error('Google credentials not found for user');
+  }
+  
+  const googleCreds = userData.google;
   if (!googleCreds?.accessToken) {
     throw new Error('Missing Google access token');
   }
@@ -38,31 +48,39 @@ async function initializeGoogleCalendar(uid) {
 router.post('/add-event', verifyFirebaseToken, async (req, res) => {
   console.log(`POST /api/calendar/add-event`);
   const uid = req.user.uid;
-  const { summary, location, description, start, end } = req.body;
+  const { summary, location, description, start, end, recurrence } = req.body;
+
+  // Validate required fields
+  if (!summary || !start || !end) {
+    return res.status(400).json({ error: 'Missing required fields: summary, start, or end' });
+  }
 
   try {
     const calendar = await initializeGoogleCalendar(uid);
 
-    console.log(`startDate: ${start}`);
-    console.log(`endDate: ${end}`);
-
+    // Parse and validate dates
     const startDate = new Date(start);
     const endDate = new Date(end);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format for start or end' });
+    }
 
     const isoStart = startDate.toISOString();
     const isoEnd = endDate.toISOString();
 
-    console.log(`${isoStart}, ${isoEnd}`);
-
     const event = {
       summary,
-      location,
-      description,
+      location: location || '',
+      description: description || '',
       start: { dateTime: isoStart, timeZone: 'America/Los_Angeles' },
       end: { dateTime: isoEnd, timeZone: 'America/Los_Angeles' },
     };
-
-    console.log('Insert event');
+    
+    // Add recurrence rule if provided
+    if (recurrence && Array.isArray(recurrence) && recurrence.length > 0) {
+      event.recurrence = recurrence;
+    }
 
     // Insert the event
     const response = await calendar.events.insert({
@@ -70,13 +88,40 @@ router.post('/add-event', verifyFirebaseToken, async (req, res) => {
       requestBody: event,
     });
 
-    console.log('received response');
-
     // Return the event link
+    console.log('Event created successfully with link:', response.data.htmlLink);
     return res.json({ htmlLink: response.data.htmlLink });
   } catch (error) {
     console.error('Error creating event:', error);
-    return res.status(500).json({ error: 'Failed to create calendar event' });
+    return res.status(500).json({ error: 'Failed to create calendar event', details: error.message });
+  }
+});
+
+// GET /api/calendar/list-events
+router.get('/list-events', verifyFirebaseToken, async (req, res) => {
+  console.log(`GET /api/calendar/list-events`);
+  const uid = req.user.uid;
+  
+  try {
+    const calendar = await initializeGoogleCalendar(uid);
+
+    // Get now as ISO string
+    const now = new Date().toISOString();
+
+    // Get events sorted by start time
+    const response = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: now,
+      maxResults: 10,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+
+    const events = response.data.items || [];
+    return res.json(events);
+  } catch (error) {
+    console.error('Error listing events:', error);
+    return res.status(500).json({ error: 'Failed to list calendar events' });
   }
 });
 
@@ -89,38 +134,80 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
   try {
     const calendar = await initializeGoogleCalendar(uid);
 
-    // Retrieve the event to check if it exists
+    // Verify the event exists first
+    let existingEvent;
     try {
-      await calendar.events.get({
+      const eventResponse = await calendar.events.get({
         calendarId: 'primary',
         eventId: eventId,
       });
+      existingEvent = eventResponse.data;
     } catch (error) {
       if (error.code === 404) {
         return res.status(404).json({ error: 'Event not found' });
       }
-      throw error; // Re-throw other errors
+      throw error;
     }
 
     console.log('Updating event');
 
     // Build the event resource
+    // Log the input received from the client
+    console.log('Update request received with times:', { start, end });
+    
+    // Ensure we have valid start and end times
+    if (!start || !end) {
+      console.error('Missing start or end time:', { start, end });
+      return res.status(400).json({ error: 'Missing start or end time' });
+    }
+    
+    // Don't create new Date objects which can cause timezone issues
+    // Instead, directly use the ISO strings provided if they're valid
+    let isoStart, isoEnd;
+    
+    // Check if the strings are already valid ISO format
     const startDate = new Date(start);
     const endDate = new Date(end);
+    
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.error('Invalid date format received:', { start, end });
+      return res.status(400).json({ error: 'Invalid date format for start or end time' });
+    }
+    
+    // Use the original strings if they're already valid ISO format
+    if (start.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
+      isoStart = start;
+    } else {
+      isoStart = startDate.toISOString();
+    }
+    
+    if (end.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
+      isoEnd = end;
+    } else {
+      isoEnd = endDate.toISOString();
+    }
 
-    const isoStart = startDate.toISOString();
-    const isoEnd = endDate.toISOString();
+    console.log(`Parsed and converted times: ${isoStart}, ${isoEnd}`);
 
-    console.log(`${isoStart}, ${isoEnd}`);
-
+    // Keep existing fields if not provided in the update
     const event = {
-      summary,
-      location,
-      description,
+      summary: summary || existingEvent.summary,
+      location: location !== undefined ? location : (existingEvent.location || ''),
+      description: description !== undefined ? description : (existingEvent.description || ''),
       start: { dateTime: isoStart, timeZone: 'America/Los_Angeles' },
       end: { dateTime: isoEnd, timeZone: 'America/Los_Angeles' },
     };
 
+    // Log the exact payload we're sending to Google Calendar API
+    console.log('Sending update to Google Calendar with payload:', {
+      summary: event.summary,
+      start: event.start,
+      end: event.end,
+      location: event.location,
+      description: event.description
+    });
+    
     // Update the event
     const response = await calendar.events.update({
       calendarId: 'primary',
@@ -128,13 +215,13 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
       requestBody: event,
     });
 
-    console.log('received response');
+    console.log('Received response from Google Calendar API');
 
     // Return the event link
     return res.json({ htmlLink: response.data.htmlLink });
   } catch (error) {
     console.error('Error updating event:', error);
-    return res.status(500).json({ error: 'Failed to update calendar event' });
+    return res.status(500).json({ error: 'Failed to update calendar event', details: error.message });
   }
 });
 
@@ -153,7 +240,14 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
       eventId: eventId,
     });
 
-    console.log('Event retrieved');
+    console.log('Event retrieved:', response.data.id);
+    
+    // Log event start/end times for debugging
+    const eventData = response.data;
+    console.log('Retrieved event times:', {
+      start: eventData.start?.dateTime || eventData.start?.date,
+      end: eventData.end?.dateTime || eventData.end?.date
+    });
 
     // Return the event data
     return res.json(response.data);
@@ -162,6 +256,7 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
     return res.status(500).json({ error: 'Failed to retrieve calendar event' });
   }
 });
+
 
 // DELETE /api/calendar/delete-event/:eventId
 router.delete(
@@ -194,9 +289,9 @@ router.delete(
         eventId: eventId,
       });
 
-      console.log('Event deleted');
+      console.log('Event deleted successfully with ID:', eventId);
 
-      // Return success response
+      // Return 204 No Content for successful deletion
       return res.status(204).send();
     } catch (error) {
       console.error('Error deleting event:', error);
@@ -204,25 +299,5 @@ router.delete(
     }
   },
 );
-
-// GET /api/calendar/list-events
-router.get('/list-events', verifyFirebaseToken, async (req, res) => {
-  console.log(`GET /api/calendar/list-events`);
-  const uid = req.user.uid;
-
-  try {
-    const calendar = await initializeGoogleCalendar(uid);
-
-    const response = await calendar.events.list({
-      calendarId: 'primary',
-      maxResults: 1,
-    });
-
-    return res.json(response.data.items);
-  } catch (error) {
-    console.error('Error listing events:', error);
-    return res.status(500).json({ error: 'Failed to list calendar events' });
-  }
-});
 
 module.exports = router;

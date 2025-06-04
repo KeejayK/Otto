@@ -1,14 +1,14 @@
-const { buildPrompt } = require('../services/nlp/gptPromptManager');
+const { createPrompt } = require('../services/nlp/gptPromptManager');
 
-describe('buildPrompt', () => {
+describe('createPrompt', () => {
   it('includes the user message in the prompt', () => {
     const input = 'Add ECON 200 lecture on MWF from 10 to 11';
-    const prompt = buildPrompt(input);
+    const prompt = createPrompt(input);
     expect(prompt).toContain(input);
   });
 
   it('includes expected JSON keys', () => {
-    const prompt = buildPrompt('Create event');
+    const prompt = createPrompt('Create event');
     expect(prompt).toContain('- title: string');
     expect(prompt).toContain('- location: string');
     expect(prompt).toContain('- description: string');
