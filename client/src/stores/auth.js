@@ -43,8 +43,6 @@ export const useAuthStore = defineStore('auth', {
       }
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/google`, {
-      // Send tokens to backend to verify and check calendar access
-      const response = await fetch('http://localhost:3000/api/auth/google', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${idToken}`,
