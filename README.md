@@ -192,5 +192,6 @@ otto/
 
 
 ## Deployed Version
-ottocalendar.netlify.app/
+(ottocalendar.netlify.app/)
+
 Note: The first load may take up to a minute due to free tier limits. If it’s slow, wait and try again.
