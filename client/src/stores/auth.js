@@ -12,6 +12,7 @@ const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
 ];
 
+// 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
@@ -21,6 +22,7 @@ export const useAuthStore = defineStore('auth', {
     userProfile: null, // Add userProfile to store user's name and picture
   }),
   actions: {
+    // Initialize the store and set up auth state listener
     async login() {
       const { idToken, accessToken, user } = await loginWithGoogle();
       this.user = user;
@@ -37,6 +39,7 @@ export const useAuthStore = defineStore('auth', {
         };
       }
 
+      // Send tokens to backend to verify and check calendar access
       const response = await fetch('http://localhost:3000/api/auth/google', {
         method: 'POST',
         headers: {
@@ -49,12 +52,14 @@ export const useAuthStore = defineStore('auth', {
         }),
       });
 
+      // Update calendar access based on backend response
       if (response.ok) {
         const data = await response.json();
         this.calendarAccess = data.calendarAccess || false;
       }
     },
 
+    // Request calendar access from the backend
     async requestCalendarAccess() {
       if (!this.user || this.calendarAccess) return;
 
@@ -79,6 +84,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    // Logout the user and clear state
     async logout() {
       await signOut(auth);
       this.user = null;
@@ -88,6 +94,7 @@ export const useAuthStore = defineStore('auth', {
       this.userProfile = null;
     },
 
+    // Retrieve the user profile
     getUserProfile() {
       return this.userProfile || this.user;
     },
@@ -149,14 +156,17 @@ export const useAuthStore = defineStore('auth', {
       return false;
     },
 
+    // Check if the user is authenticated
     get isAuthenticated() {
       return !!this.user;
     },
 
+    // Returns true if user has calendar access
     get hasCalendarAccess() {
       return this.calendarAccess;
     },
 
+    // Initialize the store and set up auth state listener
     initialize() {
       onAuthStateChanged(auth, async (user) => {
         if (user) {
