@@ -189,3 +189,8 @@ otto/
 
 - [Developer Documentation](https://github.com/KeejayK/otto/blob/main/DeveloperDoc.md)
 - [User Manual](https://github.com/KeejayK/otto/blob/main/UserManual.md)
+
+
+## Deployed Version
+ottocalendar.netlify.app/
+Note: The first load may take up to a minute due to free tier limits. If it’s slow, wait and try again.
