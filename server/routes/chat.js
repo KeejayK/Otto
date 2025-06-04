@@ -83,6 +83,10 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                     const existingStart = existingEvent.start.dateTime || existingEvent.start.date;
                     const existingEnd = existingEvent.end.dateTime || existingEvent.end.date;
                     
+                    // Store existing times in the pending object for reference
+                    pending.existingStart = existingStart;
+                    pending.existingEnd = existingEnd;
+                    
                     // Parse the time-only value and apply it to the existing date
                     const match = pending.start.match(timePattern);
                     if (match) {
@@ -148,11 +152,24 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                     endISOString = endDate.toISOString();
                   }
                 }
-              } else if (!endISOString) {
-                // If endISOString is still not set, use whatever was in pending.end
+              } else if (!endISOString || pending.end === '') {
+                // If endISOString is still not set or empty, calculate based on start time
+                // First attempt to use whatever was in pending.end
                 const endDate = new Date(pending.end);
                 if (!isNaN(endDate.getTime())) {
                   endISOString = endDate.toISOString();
+                } else if (pending.existingStart && pending.existingEnd && startISOString) {
+                  // If we have existing event times, maintain the same duration
+                  const existingStartTime = new Date(pending.existingStart).getTime();
+                  const existingEndTime = new Date(pending.existingEnd).getTime();
+                  const duration = existingEndTime - existingStartTime;
+                  
+                  // Apply the same duration to the new start time
+                  const newStartTime = new Date(startISOString).getTime();
+                  const newEndTime = newStartTime + duration;
+                  endISOString = new Date(newEndTime).toISOString();
+                  console.log(`Updated start time from full date (no day match in message): ${startISOString}`);
+                  console.log(`Adjusted end time to maintain duration (no explicit endToUse): ${endISOString}`);
                 }
               }
               
@@ -160,30 +177,37 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
               const startDate = new Date(startISOString);
               const endDate = new Date(endISOString);
               
+              // Log the existing and calculated times for debugging
+              console.log("Existing times:", {
+                existingStart: pending.existingStart,
+                existingEnd: pending.existingEnd
+              });
+              
+              console.log("Update times:", {
+                start: startISOString,
+                end: endISOString
+              });
+              
               // Ensure we have valid times
               if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
                 throw new Error('Invalid date format in update payload');
               }
 
-              console.log("Final update payload:", {
+              // Use the start and end ISO strings that were calculated earlier, not new Date() conversions
+              const finalPayload = {
                 eventId: pending.eventId,
                 summary: pending.title,
                 location: pending.location,
                 description: pending.description,
-                start: startDate.toISOString(),
-                end: endDate.toISOString(),
-              });
+                start: pending.start, // Use confirmed start time from pendingEvent
+                end: pending.end,     // Use confirmed end time from pendingEvent
+              };
+              
+              console.log("Final update payload:", finalPayload);
               
               const updateRes = await axios.put(
                 'http://localhost:3000/api/calendar/modify-event',
-                {
-                  eventId: pending.eventId,
-                  summary: pending.title,
-                  location: pending.location,
-                  description: pending.description,
-                  start: startISOString,
-                  end: endISOString,
-                },
+                finalPayload,
                 { headers: { Authorization: authHeader } }
               );
               delete sessionState[sessionId].pendingEvent;
@@ -683,8 +707,8 @@ What would you like to do today? You can ask me to:
                         }
 
                         if (useThisExtractedTime) {
-                            extractedEnd = timeMatch[0].replace(/^\\b(?:until|to|ends?(?:\\s+at)?|till?)\\s+/, '');
-                            console.log("Extracted end time from user message:", extractedEnd);
+                          extractedEnd = timeMatch[0].replace(/^\\b(?:until|to|ends?(?:\\s+at)?|till?)\\s+/, '');
+                          console.log("Extracted end time from user message:", extractedEnd);
                         }
                     } else {
                         console.log("Invalid time values found for potential end time:", { hours, minutes });
