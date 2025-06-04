@@ -8,7 +8,6 @@ const router = express.Router();
 // Helper function to initialize Google Calendar API
 async function initializeGoogleCalendar(uid) {
   // Retrieve stored Google credentials
-  console.log('Retrieving google creds for user:', uid);
   const userDoc = await admin.firestore().collection('users').doc(uid).get();
   
   if (!userDoc.exists) {
@@ -25,28 +24,24 @@ async function initializeGoogleCalendar(uid) {
     throw new Error('Missing Google access token');
   }
 
-  console.log('Initializing Oauth2 Client');
   // Initialize OAuth2 client
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
   );
 
-  console.log('Setting credentials');
   const tokens = { access_token: googleCreds.accessToken };
   if (googleCreds.refreshToken) {
     tokens.refresh_token = googleCreds.refreshToken;
   }
   oauth2Client.setCredentials(tokens);
 
-  console.log('Initializing calendar');
   // Initialize Calendar API with auth
   return google.calendar({ version: 'v3', auth: oauth2Client });
 }
 
 // POST /api/calendar/add-event
 router.post('/add-event', verifyFirebaseToken, async (req, res) => {
-  console.log(`POST /api/calendar/add-event`);
   const uid = req.user.uid;
   const { summary, location, description, start, end, recurrence } = req.body;
 
@@ -89,7 +84,6 @@ router.post('/add-event', verifyFirebaseToken, async (req, res) => {
     });
 
     // Return the event link
-    console.log('Event created successfully with link:', response.data.htmlLink);
     return res.json({ htmlLink: response.data.htmlLink });
   } catch (error) {
     console.error('Error creating event:', error);
@@ -99,7 +93,6 @@ router.post('/add-event', verifyFirebaseToken, async (req, res) => {
 
 // GET /api/calendar/list-events
 router.get('/list-events', verifyFirebaseToken, async (req, res) => {
-  console.log(`GET /api/calendar/list-events`);
   const uid = req.user.uid;
   
   try {
@@ -127,7 +120,6 @@ router.get('/list-events', verifyFirebaseToken, async (req, res) => {
 
 // PUT /api/calendar/modify-event
 router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
-  console.log(`PUT /api/calendar/modify-event`);
   const uid = req.user.uid;
   const { eventId, summary, location, description, start, end } = req.body;
 
@@ -146,17 +138,13 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
       throw error;
     }
 
-    console.log('Updating event');
-
     // Build the event resource
     const startDate = new Date(start);
     const endDate = new Date(end);
 
     const isoStart = startDate.toISOString();
     const isoEnd = endDate.toISOString();
-
-    console.log(`${isoStart}, ${isoEnd}`);
-
+    
     const event = {
       summary,
       location,
@@ -172,8 +160,6 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
       requestBody: event,
     });
 
-    console.log('received response');
-
     // Return the event link
     return res.json({ htmlLink: response.data.htmlLink });
   } catch (error) {
@@ -184,7 +170,6 @@ router.put('/modify-event', verifyFirebaseToken, async (req, res) => {
 
 // GET /api/calendar/get-event/:eventId
 router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
-  console.log(`GET /api/calendar/get-event/${req.params.eventId}`);
   const uid = req.user.uid;
   const { eventId } = req.params;
 
@@ -197,8 +182,6 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
       eventId: eventId,
     });
 
-    console.log('Event retrieved:', response.data.id);
-
     // Return the event data
     return res.json(response.data);
   } catch (error) {
@@ -207,13 +190,11 @@ router.get('/get-event/:eventId', verifyFirebaseToken, async (req, res) => {
   }
 });
 
-
 // DELETE /api/calendar/delete-event/:eventId
 router.delete(
   '/delete-event/:eventId',
   verifyFirebaseToken,
   async (req, res) => {
-    console.log(`DELETE /api/calendar/delete-event/${req.params.eventId}`);
     const uid = req.user.uid;
     const { eventId } = req.params;
 
@@ -238,8 +219,6 @@ router.delete(
         calendarId: 'primary',
         eventId: eventId,
       });
-
-      console.log('Event deleted successfully with ID:', eventId);
 
       // Return 204 No Content for successful deletion
       return res.status(204).send();

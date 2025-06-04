@@ -8,9 +8,10 @@
         <div ref="profileDropdownRef" class="profile-container" @click="toggleDropdown">
           <span class="user-name">{{ userName }}</span>
           <img
-            :src="userPhoto || '@/assets/default-avatar.svg'"
+            :src="userPhoto"
             alt="Profile"
             class="avatar"
+            @error="handleAvatarError"
           />
           <span class="dropdown-arrow" :class="{ 'dropdown-arrow-open': isDropdownOpen }">▼</span>
           
@@ -39,6 +40,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import defaultAvatar from '@/assets/default-avatar.svg';
 
 const router = useRouter();
 const route = useRoute();
@@ -51,13 +53,21 @@ const userName = computed(() => {
   return profile?.displayName || 'User';
 });
 const userPhoto = computed(() => {
-  const profile = authStore.getUserProfile();
-  return profile?.photoURL || '@/assets/default-avatar.svg';
+  // Use refreshProfilePhoto to ensure we have the correctly formatted photo URL
+  const photoURL = authStore.refreshProfilePhoto();
+  return photoURL || defaultAvatar;
 });
 
 onMounted(async () => {
   // Check if user is already logged in
   authStore.initialize();
+  
+  // After a short delay, reload the user profile to ensure we have the latest data
+  setTimeout(async () => {
+    if (authStore.isAuthenticated) {
+      await authStore.reloadUserProfile();
+    }
+  }, 1500);
 });
 
 const isDropdownOpen = ref(false);
@@ -65,6 +75,19 @@ const profileDropdownRef = ref(null);
 
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
+};
+
+// Function to handle avatar image load errors
+const handleAvatarError = (event) => {
+  console.warn('Avatar image failed to load:', event);
+  
+  // Use default avatar when Google photo fails to load
+  event.target.src = defaultAvatar;
+  
+  // Try to reload the user profile after a short delay
+  if (authStore.isAuthenticated) {
+    setTimeout(() => authStore.reloadUserProfile(), 500);
+  }
 };
 
 // Close dropdown when clicking outside

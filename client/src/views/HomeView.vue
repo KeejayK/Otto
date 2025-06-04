@@ -29,11 +29,8 @@
             <VueMarkdownIt :source="message.content" @click.native="handleMarkdownLinkClick" />
             <!-- Confirmation buttons for event operations -->
             <div v-if="isConfirmationMessage(message.content)" class="confirmation-buttons">
-              <button class="confirm-btn" @click="handleConfirmation(true)">
+              <button class="confirm-btn" @click="handleConfirmation()">
                 Confirm
-              </button>
-              <button class="cancel-btn" @click="handleConfirmation(false)">
-                Cancel
               </button>
             </div>
           </template>
@@ -300,13 +297,13 @@ const isConfirmationMessage = (message) => {
 };
 
 // Handle confirmation button clicks
-const handleConfirmation = (isConfirmed) => {
-  const messageText = isConfirmed ? 'Confirm' : 'Cancel';
+const handleConfirmation = () => {
+  const messageText = 'Confirm';
   const lastMessage = chatMessages.value[chatMessages.value.length - 1]?.content || '';
   const isDeleteConfirmation = lastMessage.includes('delete') || lastMessage.includes('Delete');
   
   // For deletion confirmations, don't show the "yes" in the chat
-  if (!(isConfirmed && isDeleteConfirmation)) {
+  if (!isDeleteConfirmation) {
     chatMessages.value.push({
       role: 'user',
       content: messageText,
@@ -908,12 +905,11 @@ onMounted(() => {
 /* Confirmation Button Styles */
 .confirmation-buttons {
   display: flex;
-  gap: 12px;
   margin-top: 16px;
   margin-bottom: 8px;
 }
 
-.confirm-btn, .cancel-btn {
+.confirm-btn {
   background-color: #f5f5f5;
   color: #333;
   border: 1px solid #ddd;
@@ -941,13 +937,7 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-.cancel-btn:hover {
-  background-color: #e5e5e5;
-  color: #333;
-  transform: translateY(-2px);
-}
-
-.confirm-btn:active, .cancel-btn:active {
+.confirm-btn:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
