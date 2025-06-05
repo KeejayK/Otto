@@ -1,11 +1,12 @@
 function formatTimeForPrompt() {
   const now = new Date();
+  const tz = 'America/Los_Angeles';
   return {
-    date: now.toLocaleDateString('en-CA'),
-    time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }),
-    dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
-    hour24: now.getHours(),
-    minute: now.getMinutes()
+    date:  now.toLocaleDateString('en-CA', { timeZone: tz }),
+    time:  now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true, timeZone: tz }),
+    dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long', timeZone: tz }),
+    hour24: Number(now.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: tz })),
+    minute:  Number(now.toLocaleTimeString('en-US', { minute: '2-digit', hour12: false, timeZone: tz }))
   };
 }
 
