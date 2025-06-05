@@ -249,6 +249,12 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
           } else {
             // Create event
             try {
+              const startDate = new Date(pending.start);
+              const endDate = new Date(pending.end);
+              startDate.setHours(startDate.getHours() + 0);
+              endDate.setHours(endDate.getHours() + 0);
+              pending.start = startDate.toISOString();
+              pending.end = endDate.toISOString();
               const calendarRes = await axios.post(
                 `${CALENDAR_BASE}/add-event`,
                 {
